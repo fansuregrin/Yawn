@@ -4,6 +4,8 @@ A high-performance WEB server implemented in C++, which can achieve tens of thou
 
 # Introduction
 
+![webserver_arch](./docs/imgs/webserver_arch.png)
+
 # Build and Run
 
 # Acknowledgements
