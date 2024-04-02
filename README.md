@@ -24,6 +24,13 @@ The implementation process of this project includes the following aspects:
 
 # Build and Run
 
+```bash
+git clone https://github.com/fansuregrin/WebServer.git WebServer
+cd ./WebServer/src
+make
+../bin/server [YOUR_SERVER_CONFIG_FILE]
+```
+
 # Acknowledgements
 - [TinyWebServer](https://github.com/qinguoyi/TinyWebServer)
 - [WebServer](https://github.com/markparticle/WebServer)
