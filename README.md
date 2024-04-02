@@ -2,7 +2,7 @@
 
 A high-performance WEB server implemented in C++, which can achieve tens of thousands of QPS after webbenchh stress test.
 
-# Introduction
+## Introduction
 The implementation process of this project includes the following aspects:
 - Use **half-synchronous/half-reactive pattern** to achieve high concurrency.
     - main thread: I/O multiplexing asynchronous thread
@@ -22,7 +22,7 @@ The implementation process of this project includes the following aspects:
 
 ![webserver_arch](./docs/imgs/webserver_arch.png)
 
-# Build and Run
+## Build and Run
 
 ```bash
 git clone https://github.com/fansuregrin/WebServer.git WebServer
@@ -31,10 +31,10 @@ make
 ../bin/server [YOUR_SERVER_CONFIG_FILE]
 ```
 
-# TODO Lists
+## TODO Lists
 - [ ] Use `gtest` to re-write test code. 
 
-# Acknowledgements
+## Acknowledgements
 - [TinyWebServer](https://github.com/qinguoyi/TinyWebServer)
 - [WebServer](https://github.com/markparticle/WebServer)
 - [《Linux 高性能服务器编程》](https://course.cmpreading.com/web/refbook/detail/5068/208) writen by **游双**
