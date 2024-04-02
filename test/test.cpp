@@ -8,9 +8,11 @@
 void test_log();
 void test_timer();
 void test_config();
+void test_threadpool(int thread_num, int task_num);
 
 int main() {
     // test_log();
     // test_timer();
-    test_config();
+    // test_config();
+    test_threadpool(4, 20);
 }

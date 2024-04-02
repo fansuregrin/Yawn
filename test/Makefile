@@ -7,6 +7,7 @@ OBJS = ./test.cpp\
 	   ./test_log.cpp\
 	   ./test_timer.cpp\
 	   ./test_config.cpp\
+	   ./test_threadpool.cpp\
        ../src/buffer/buffer.cpp\
 	   ../src/log/log.cpp\
 	   ../src/config/config.cpp\
