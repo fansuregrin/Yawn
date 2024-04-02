@@ -32,7 +32,8 @@ make
 ```
 
 ## TODO Lists
-- [ ] Use `gtest` to re-write test code. 
+- [ ] Use `gtest` to re-write test code.
+- [ ] Implement *circular buffer*.
 
 ## Acknowledgements
 - [TinyWebServer](https://github.com/qinguoyi/TinyWebServer)
