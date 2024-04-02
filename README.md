@@ -24,6 +24,19 @@ The implementation process of this project includes the following aspects:
 
 ## Build and Run
 
+### Create the database
+```sql
+CREATE DATABASE your_db_name;
+USE your_db_name;
+
+CREATE TABLE users(
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username CHAR(50) UNIQUE KEY NOT NULL,
+    password CHAR(50) NOT NULL
+) ENGINE=InnoDB;
+```
+
+## Compile and run
 ```bash
 git clone https://github.com/fansuregrin/WebServer.git WebServer
 cd ./WebServer/src
