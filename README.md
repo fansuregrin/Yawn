@@ -38,4 +38,4 @@ make
 ## Acknowledgements
 - [TinyWebServer](https://github.com/qinguoyi/TinyWebServer)
 - [WebServer](https://github.com/markparticle/WebServer)
-- [《Linux 高性能服务器编程》](https://course.cmpreading.com/web/refbook/detail/5068/208) writen by **游双**
+- [《Linux 高性能服务器编程》](https://course.cmpreading.com/web/refbook/detail/5068/208) written by **游双**
