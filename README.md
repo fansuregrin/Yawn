@@ -31,6 +31,9 @@ make
 ../bin/server [YOUR_SERVER_CONFIG_FILE]
 ```
 
+# TODO Lists
+- [ ] Use `gtest` to re-write test code. 
+
 # Acknowledgements
 - [TinyWebServer](https://github.com/qinguoyi/TinyWebServer)
 - [WebServer](https://github.com/markparticle/WebServer)
