@@ -20,27 +20,31 @@ public:
     HttpResponse();
     ~HttpResponse();
 
-    void init(const string &src_dir_, string &path_, bool is_keep_alive_ = false,
+    void init(const string &src_dir_, const string &path_, bool is_keep_alive_ = false,
         int status_code_ = -1);
     void unmap_file();
     void make_response(Buffer &buf);
     char* get_file();
     size_t filelen() const;
-    void error_content(Buffer &buf, const string &msg);
 
     int get_status_code() const { return status_code; }
 private:
     void add_statusline(Buffer &buf);
     void add_headers(Buffer &buf);
-    void check_request_src();
-    void add_content_length(Buffer &buf);
-    string get_file_type();
+    void set_err_content();
+    void check_resource_and_map(const std::string &fp);
+    bool map_file(const std::string &fp);
+    string get_file_type(const std::string &fp);
+    string get_default_err_content();
 
     int status_code;
     bool is_keep_alive;
     string path;
     string src_dir;
-    char * mm_file;
+    string body;
+    string content_type;
+    size_t content_length{0};
+    char * mm_file;  // 文件映射到内存中的地址
     struct stat mm_file_stat;
 
     static const unordered_map<string,string> SUFFIX_TYPE;

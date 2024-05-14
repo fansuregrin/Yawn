@@ -101,10 +101,10 @@ bool HttpConn::process() {
     if (request.parse(read_buf)) {
         response.init(src_dir, request.get_path(), request.is_keep_alive(), 200);
     } else {
-        response.init(src_dir, request.get_path(), false, 400);
+        response.init(src_dir, std::string(), false, 400);
     }
 
-    // 响应的状态行和头部
+    // 响应的状态行、头部和响应体
     response.make_response(write_buf);
     iov[0].iov_base = const_cast<char*>(write_buf.peek());
     iov[0].iov_len = write_buf.readable_bytes();
