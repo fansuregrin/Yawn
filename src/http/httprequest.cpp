@@ -55,22 +55,13 @@ int HttpRequest::convert_hex(char ch) {
     return ch - '0';
 }
 
-void HttpRequest::str_lower(std::string &str) {
-    for (auto ch:str) {
+std::string HttpRequest::str_lower(std::string str) {
+    for (auto &ch:str) {
         if (ch >= 'A' && ch <= 'Z') {
-            ch = ch - 32;
+            ch += 32;
         }
     }
-}
-
-std::string HttpRequest::str_lower(const std::string &str) {
-    std::string new_str = str;
-    for (auto ch:new_str) {
-        if (ch >= 'A' && ch <= 'Z') {
-            ch = ch - 32;
-        }
-    }
-    return new_str;
+    return str;
 }
 
 void HttpRequest::init() {
@@ -173,8 +164,7 @@ void HttpRequest::parse_header(const std::string &line) {
     }
     smatch sub_match;
     if (regex_match(line, sub_match, re_header)) {
-        std::string field_name = sub_match[1];
-        str_lower(field_name);
+        std::string field_name = str_lower(sub_match[1]);
         headers[field_name] = sub_match[2];
     }
 }

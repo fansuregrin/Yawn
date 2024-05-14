@@ -72,8 +72,7 @@ private:
     static const std::regex re_requestline;
     static const std::regex re_header;
     static int convert_hex(char ch);
-    static void str_lower(std::string &str);
-    static std::string str_lower(const std::string &str);
+    static std::string str_lower(std::string str);
 };
 
 #endif
