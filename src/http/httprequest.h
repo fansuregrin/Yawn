@@ -56,8 +56,6 @@ private:
     void parse_post();
     void parse_form_urlencoded();
     void parse_path();
-    bool verify_user(const std::string &username, const std::string &passwd,
-            bool is_login);
 
     PARSE_STATE state;    // 请求的解析状态
     std::string method;   // 请求方法

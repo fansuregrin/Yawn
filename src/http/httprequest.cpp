@@ -182,26 +182,6 @@ void HttpRequest::parse_post() {
     if (method != "POST") return;
     if (headers["Content-Type"] == "application/x-www-form-urlencoded") {
         parse_form_urlencoded();
-        if (DEFAULT_HTML_TAG.find(path) != DEFAULT_HTML_TAG.end()) {
-            int tag = DEFAULT_HTML_TAG[path];
-            LOG_DEBUG("Hit HTML tag: %d, the path is: %s", tag, path.c_str());
-            // login or register
-            if (tag == 0 || tag == 1) {
-                if (post.count("username")==0 || post.count("password")==0) {
-                    path = "/error.html"; 
-                }
-                if (verify_user(post["username"], post["password"], (tag == 1))) {
-                    if (tag == 1) {
-                        LOG_DEBUG("User [%s] successfully logged in!", post["username"].c_str());
-                    } else {
-                        LOG_DEBUG("User [%s] successfully registered!", post["username"].c_str());
-                    }
-                    path = "/welcome.html";
-                } else {
-                    path = "/error.html";
-                }
-            }
-        }
     }
 }
 
@@ -249,80 +229,4 @@ void HttpRequest::parse_path() {
     } else if (DEFAULT_HTML.find(path) != DEFAULT_HTML.end()) {
         path += ".html";
     }
-}
-
-bool
-HttpRequest::verify_user(const std::string &username, const std::string &passwd,
-bool is_login) {
-    if (username == "" || passwd == "") {
-        return false;
-    }
-    
-    LOG_DEBUG("Verifying a user: [username: %s, password: %s]", username.c_str(),
-        passwd.c_str());
-    MYSQL * conn = nullptr;
-    SQLConnRAII(conn, SQLConnPool::get_instance());
-    assert(conn);
-
-    std::string safe_username;
-    for (auto ch:username) {
-        if (ch == '\'') {
-            safe_username.push_back('\'');
-        }
-        safe_username.push_back(ch);
-    }
-    char sql_stmt[512];
-    memset(sql_stmt, '\0', sizeof(sql_stmt));
-    
-    snprintf(sql_stmt, sizeof(sql_stmt)-1, "SELECT username,password FROM users "
-        "WHERE `username`='%s';", username.c_str());
-    LOG_DEBUG("%s", sql_stmt);
-    if (mysql_query(conn, sql_stmt)) {
-        LOG_DEBUG("%s", mysql_error(conn));
-        return false;
-    }
-    MYSQL_RES *res = nullptr;
-    res = mysql_store_result(conn);
-    if (!res) {
-        mysql_free_result(res);
-        if (mysql_errno(conn)) {
-            LOG_DEBUG("%s", mysql_error(conn));
-        }
-        return false;
-    }
-    bool verified = false;
-    if (MYSQL_ROW row = mysql_fetch_row(res)) {
-        // 查询到指定的用户
-        LOG_DEBUG("Get the result: username=%s, passowrd=%s", row[0], row[1]);
-        std::string real_passwd(row[1]);
-        if (is_login) {
-            // 验证登录的用户密码是否正确
-            if (passwd == real_passwd) {
-                verified = true;
-                LOG_DEBUG("User verified.");
-            } else {
-                LOG_DEBUG("Password error!");
-            }
-        } else {
-            // 注册的用户名已经存在
-            LOG_DEBUG("Username already exists!");
-        }
-        mysql_free_result(res);
-        return verified;
-    }
-    // 没有查询到指定用户
-    // 如果是登录用户，则用户名错误，验证失败
-    if (is_login) return false;
-    // 如果是注册用户，则添加新用户
-    /**
-     * @todo check password
-    */
-    snprintf(sql_stmt, sizeof(sql_stmt)-1, "INSERT INTO users(username,password)"
-        " VALUES('%s','%s');", username.c_str(), passwd.c_str());
-    if (mysql_query(conn, sql_stmt)) {
-        LOG_DEBUG("%s", mysql_error(conn));
-        return false;
-    }
-    LOG_DEBUG("User verified.");
-    return true;
 }
