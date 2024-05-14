@@ -76,7 +76,7 @@ bool HttpRequest::parse(Buffer &buf) {
     if (buf.readable_bytes() <= 0) return false;
     while (buf.readable_bytes() && state != FINISH) {
         if (state == BODY) {
-            parse_body(std::string(buf.peek(), buf.begin_write_const()));
+            parse_body(buf.retrieve_all_as_str());
             continue;
         }
         const char *line_end = std::search(buf.peek(), buf.begin_write_const(),

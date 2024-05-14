@@ -115,6 +115,13 @@ bool HttpConn::process() {
         iov[1].iov_len = response.filelen();
         iov_cnt = 2;
     }
+    LOG_INFO(
+        // request-line response-code content-length
+        "\"%s %s HTTP/%s\" %d %d",
+        request.get_method().c_str(), request.get_path().c_str(),
+        request.get_version().c_str(), response.get_status_code(),
+        response.get_content_length()
+    );
     LOG_DEBUG("response bytes: %d, file bytes: %d", to_write_bytes(),
         response.filelen());
     return true;

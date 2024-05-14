@@ -28,6 +28,7 @@ public:
     size_t filelen() const;
 
     int get_status_code() const { return status_code; }
+    int get_content_length() const { return content_length; }
 private:
     void add_statusline(Buffer &buf);
     void add_headers(Buffer &buf);
