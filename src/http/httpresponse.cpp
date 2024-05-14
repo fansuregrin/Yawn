@@ -103,10 +103,9 @@ void HttpResponse::make_response(Buffer &buf) {
     if (!path.empty()) {
         // 用户请求的资源路径非空，则检查资源文件并尝试将其映射到内存
         // 检查资源文件和映射过程都可能会出错，出错会设置相应的状态码
-        check_resource_and_map(src_dir + path);
-    }
-    if (status_code != 200) {
-        set_err_content();
+        if (!check_resource_and_map(src_dir + path)) {
+            set_err_content();
+        }
     }
     add_statusline(buf);
     add_headers(buf);
@@ -121,8 +120,7 @@ void HttpResponse::set_err_content() {
     if (status_code == 200) return;
     const auto &target = CODE_PATH.find(status_code);
     if (target != CODE_PATH.end()) {
-        check_resource_and_map(src_dir + target->second);
-        if (status_code != 200) {
+        if (!check_resource_and_map(src_dir + target->second)) {
             body = get_default_err_content();
             content_type = "text/html";
             content_length = body.size();
@@ -170,7 +168,7 @@ void HttpResponse::add_headers(Buffer &buf) {
 /**
  * @brief 检查资源文件并将资源文件映射到内存
 */
-void HttpResponse::check_resource_and_map(const std::string &fp) {
+bool HttpResponse::check_resource_and_map(const std::string &fp) {
     int ret = stat(fp.c_str(), &mm_file_stat);
     if (ret == -1) {
         if (errno == ENOENT) {  
@@ -180,11 +178,11 @@ void HttpResponse::check_resource_and_map(const std::string &fp) {
             // 其他错误，设置 Internal Server Error 错误码
             status_code = 500;
         }
-        return;
+        return false;
     } else if (S_ISDIR(mm_file_stat.st_mode)) {
         // 请求的资源是一个目录，设置 Not Found 错误码
         status_code = 404;
-        return;
+        return false;
     } else if (!(mm_file_stat.st_mode & S_IROTH)) {
         // 请求的资源没有读取权限，设置 Forbidden 错误码
         status_code = 403;
@@ -194,7 +192,7 @@ void HttpResponse::check_resource_and_map(const std::string &fp) {
         // forbidden target resource MAY instead respond with a status code of
         // 404 (Not Found)."  -- from RFC7231 6.5.3
         // status_code = 404;
-        return;
+        return false;
     }
 
     // 请求的资源没有问题
@@ -202,11 +200,12 @@ void HttpResponse::check_resource_and_map(const std::string &fp) {
     if (!map_file(fp)) {
         // 映射失败，设置 Internal Server Error 错误码
         status_code = 500;
-        return;
+        return false;
     }
 
     content_type = get_file_type(fp);
     content_length = mm_file_stat.st_size;
+    return true;
 }
 
 /**

@@ -17,15 +17,6 @@ using std::regex;
 using std::regex_match;
 using std::smatch;
 
-/* 默认的 HTML 页面 */
-std::unordered_set<std::string> HttpRequest::DEFAULT_HTML {
-    "/index", "/register", "/login", "/welcome", "/video", "/picture"
-};
-
-/* 默认的 HTML 标签 */
-std::unordered_map<std::string,int> HttpRequest::DEFAULT_HTML_TAG {
-    {"/register.html", 0}, {"/login.html", 1}
-};
 
 /**
  * 匹配 HTTP 请求行的正则表达式 
@@ -87,7 +78,7 @@ bool HttpRequest::parse(Buffer &buf) {
                 if (!parse_requestline(line)) {
                     return false;
                 }
-                parse_path();
+                parse_uri();
                 break;
             }
             case HEADERS: {
@@ -146,7 +137,7 @@ bool HttpRequest::parse_requestline(const std::string &line) {
     smatch sub_match;
     if (regex_match(line, sub_match, re_requestline)) {
         method = sub_match[1];
-        path = sub_match[2];
+        request_uri = sub_match[2];
         version = sub_match[3];
         state = HEADERS;
         LOG_DEBUG("%s", line.c_str());
@@ -223,10 +214,25 @@ void HttpRequest::parse_form_urlencoded() {
     }
 }
 
-void HttpRequest::parse_path() {
-    if (path == "/") {
-        path = "/index.html";
-    } else if (DEFAULT_HTML.find(path) != DEFAULT_HTML.end()) {
-        path += ".html";
+void HttpRequest::parse_uri() {
+    /**
+     * Request-URI    = "*" | absoluteURI | abs_path | authority
+    */
+    if (request_uri[0] == '/') {
+        // abs_path
+        auto pos = request_uri.find_first_of('?');
+        auto tmp = request_uri.substr(0, pos);
+        for (int i=0; i<tmp.size(); ++i) {
+            if (tmp[i] == '%') {
+                auto byte = convert_hex(tmp[i+1])*16 + convert_hex(tmp[i+2]);
+                path.push_back(byte);
+                i += 2;
+            } else {
+                path.push_back(tmp[i]);
+            }
+        }
+        if (path == "/") {
+            path = "/index.html";
+        }
     }
 }

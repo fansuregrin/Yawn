@@ -33,7 +33,7 @@ private:
     void add_statusline(Buffer &buf);
     void add_headers(Buffer &buf);
     void set_err_content();
-    void check_resource_and_map(const std::string &fp);
+    bool check_resource_and_map(const std::string &fp);
     bool map_file(const std::string &fp);
     string get_file_type(const std::string &fp);
     string get_default_err_content();

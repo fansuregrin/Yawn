@@ -55,18 +55,18 @@ private:
 
     void parse_post();
     void parse_form_urlencoded();
-    void parse_path();
+    void parse_uri();
 
     PARSE_STATE state;    // 请求的解析状态
     std::string method;   // 请求方法
+    std::string request_uri;
     std::string path;     // 要访问的资源路径
+    std::unordered_map<std::string,std::string> query;
     std::string version;  // HTTP 版本
     std::string body;     // 请求的消息体
     std::unordered_map<std::string,std::string> headers;  // 请求头部
     std::unordered_map<std::string,std::string> post;  // POST请求
     
-    static std::unordered_set<std::string> DEFAULT_HTML;
-    static std::unordered_map<std::string,int> DEFAULT_HTML_TAG;
     static const std::regex re_requestline;
     static const std::regex re_header;
     static int convert_hex(char ch);
