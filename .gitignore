@@ -7,3 +7,5 @@ logs/
 .vscode/
 webbench-1.5/
 my_server.cfg
+www/
+src/version.h
