@@ -42,6 +42,10 @@ Buffer::size_type Buffer::prependable_bytes() const {
     return read_pos;
 }
 
+/**
+ * @brief 查看缓冲区当前可读的数据的位置
+ * @return 缓冲区当前可读数据的起始字节地址
+*/
 const char * Buffer::peek() const {
     return begin() + read_pos;
 }
@@ -114,6 +118,12 @@ void Buffer::append(const Buffer &other) {
     append(other.peek(), other.readable_bytes());
 }
 
+/**
+ * @brief 从指定的文件描述符中读取数据
+ * @param fd 文件描述符
+ * @param saved_errno `int`类型的指针，用于保存出错时的错误码
+ * @return 读取的数据长度（单位为字节），长度小于零说明读取出错。
+*/
 ssize_t Buffer::read_fd(int fd, int * saved_errno) {
     char extra_buf[65536];
     struct iovec iov[2];
@@ -134,6 +144,12 @@ ssize_t Buffer::read_fd(int fd, int * saved_errno) {
     return len;
 }
 
+/**
+ * @brief 向指定的文件描述符中写入数据
+ * @param fd 文件描述符
+ * @param saved_errno `int`类型的指针，用于保存出错时的错误码
+ * @return 写入的数据长度（单位为字节），长度小于零说明写入出错。
+*/
 ssize_t Buffer::write_fd(int fd, int * saved_errno) {
     int len = write(fd, peek(), readable_bytes());
     if (len < 0) {

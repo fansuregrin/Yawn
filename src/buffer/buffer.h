@@ -12,7 +12,7 @@
 #include <atomic>
 
 /**
- * @brief 使用`vector`封装`char`实现的缓冲区
+ * @brief 基于`std::vector<char>`实现的自动增长缓冲区
  * @code
  * +-------------------+------------------+------------------+
  * | prependable bytes |  readable bytes  |  writable bytes  |
