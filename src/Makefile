@@ -2,7 +2,7 @@ CXX = g++
 CFLAGS = -std=c++14 -O2 -Wall -g
 
 BIN_DIR = ../bin
-TARGET = server
+TARGET = yawn
 OBJS = ./main.cpp\
        ./buffer/buffer.cpp\
 	   ./log/log.cpp\

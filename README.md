@@ -35,13 +35,22 @@ CREATE TABLE users(
     password CHAR(50) NOT NULL
 ) ENGINE=InnoDB;
 ```
-
-## Compile and run
+### Compile and Run
+#### Compile via make
 ```bash
 git clone https://github.com/fansuregrin/WebServer.git WebServer
 cd ./WebServer/src
 make
-../bin/server [YOUR_SERVER_CONFIG_FILE]
+../bin/yawn [YOUR_SERVER_CONFIG_FILE]
+```
+#### Compile via CMake
+```shell
+git clone https://github.com/fansuregrin/WebServer.git WebServer
+cd WebServer
+mkdir build && cd build
+cmake ..
+camke --build .
+./yawn [YOUR_SERVER_CONFIG_FILE]
 ```
 
 ## TODO Lists
