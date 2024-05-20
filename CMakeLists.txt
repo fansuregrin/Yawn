@@ -25,6 +25,7 @@ add_executable(
     ${PROJECT_SOURCE_DIR}/http/httpconn.cpp
     ${PROJECT_SOURCE_DIR}/config/config.cpp
     ${PROJECT_SOURCE_DIR}/server/webserver.cpp
+    ${PROJECT_SOURCE_DIR}/util/util.cpp
 )
 target_link_libraries(
     yawn

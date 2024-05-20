@@ -11,6 +11,7 @@
 #include <string>
 #include <sys/stat.h>
 #include "../buffer/buffer.h"
+#include "httprequest.h"
 
 using std::unordered_map;
 using std::string;
@@ -20,8 +21,8 @@ public:
     HttpResponse();
     ~HttpResponse();
 
-    void init(const string &src_dir_, const string &path_, bool is_keep_alive_ = false,
-        int status_code_ = -1);
+    void init(const string &src_dir_, const HttpRequest &req_, int status_code_ = -1);
+    void init(const string &src_dir_, int status_code_);
     void unmap_file();
     void make_response(Buffer &buf);
     char* get_file();
@@ -40,6 +41,7 @@ private:
 
     int status_code;
     bool is_keep_alive;
+    HttpRequest req;
     string path;
     string src_dir;
     string body;

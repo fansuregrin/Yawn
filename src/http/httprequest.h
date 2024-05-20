@@ -48,6 +48,8 @@ public:
     std::string get_version() const;
     std::string get_post(const std::string &key) const;
     std::string get_post(const char *key) const;
+    std::string get_header(const std::string &key) const;
+    std::string get_header(const char *key) const;
 private:
     bool parse_requestline(const std::string &line);
     void parse_header(const std::string &line);
@@ -69,8 +71,6 @@ private:
     
     static const std::regex re_requestline;
     static const std::regex re_header;
-    static int convert_hex(char ch);
-    static std::string str_lower(std::string str);
 };
 
 #endif

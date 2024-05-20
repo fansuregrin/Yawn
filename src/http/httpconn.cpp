@@ -99,9 +99,9 @@ bool HttpConn::process() {
         return false;
     }
     if (request.parse(read_buf)) {
-        response.init(src_dir, request.get_path(), request.is_keep_alive(), 200);
+        response.init(src_dir, request, 200);
     } else {
-        response.init(src_dir, std::string(), false, 400);
+        response.init(src_dir, 400);
     }
 
     // 响应的状态行、头部和响应体

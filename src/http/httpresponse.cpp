@@ -14,6 +14,7 @@
 #include "httpresponse.h"
 #include "../log/log.h"
 #include "../version.h"
+#include "../util/util.h"
 
 const unordered_map<string, string> HttpResponse::SUFFIX_TYPE = {
     { ".html",  "text/html" },
@@ -39,6 +40,7 @@ const unordered_map<string, string> HttpResponse::SUFFIX_TYPE = {
 
 const unordered_map<int,string> HttpResponse::STATUS_TEXT {
     {200, "OK"},
+    {304, "Not Modified"},
     {400, "Bad Request"},
     {403, "Forbidden"},
     {404, "Not Found"},
@@ -73,13 +75,21 @@ void HttpResponse::unmap_file() {
     }
 }
 
-void HttpResponse::init(const string &src_dir_, const string &path_, bool is_keep_alive_,
+void HttpResponse::init(const string &src_dir_, const HttpRequest &req_,
 int status_code_) {
-    assert(src_dir_ != "");
+    req = req_;
     unmap_file();
     src_dir = src_dir_;
-    path = path_;
-    is_keep_alive = is_keep_alive_;
+    path = req_.get_path();
+    is_keep_alive = req_.is_keep_alive();
+    status_code = status_code_;
+}
+
+void HttpResponse::init(const string &src_dir_, int status_code_) {
+    unmap_file();
+    src_dir = src_dir_;
+    path.clear();
+    is_keep_alive = false;
     status_code = status_code_;
 }
 
@@ -159,8 +169,22 @@ void HttpResponse::add_headers(Buffer &buf) {
     } else {
         headers << "Close\r\n";
     }
-    headers << "Content-Type: " << content_type << "\r\n"
-            << "Content-Length: " << content_length << "\r\n";
+    if (mm_file || status_code == 304) {
+        auto tv_ = mm_file_stat.st_mtim.tv_sec;
+        headers 
+            << "Last-Modified: " << http_gmt(tv_) << "\r\n"
+            << "Etag: " << dec2hexstr(tv_) << '-' << dec2hexstr(mm_file_stat.st_size)
+            << "\r\n";
+    }
+    if (!content_type.empty()) {
+        headers << "Content-Type: " << content_type << "\r\n";
+    }
+    if (content_length > 0) {
+        headers << "Content-Length: " << content_length << "\r\n";
+    }
+    headers << "Date: " << http_gmt() << "\r\n"
+        << "Server: " << _VENDOR_NAME << '/' << _VERSION_STRING << "\r\n";
+    
     buf.append(headers.str());
     buf.append("\r\n", 2);
 }
@@ -193,6 +217,15 @@ bool HttpResponse::check_resource_and_map(const std::string &fp) {
         // 404 (Not Found)."  -- from RFC7231 6.5.3
         // status_code = 404;
         return false;
+    }
+
+    // 处理客户端的条件请求
+    auto req_etag = req.get_header("if-none-match");
+    auto tv_ = mm_file_stat.st_mtim.tv_sec;
+    auto etag = dec2hexstr(tv_) + '-' + dec2hexstr(mm_file_stat.st_size);
+    if (req_etag == etag) {
+        status_code = 304;
+        return true;
     }
 
     // 请求的资源没有问题

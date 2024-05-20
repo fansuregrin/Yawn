@@ -12,6 +12,7 @@
 #include "../log/log.h"
 #include "../pool/sqlconnRAII.hpp"
 #include "../pool/sqlconnpool.h"
+#include "../util/util.h"
 
 using std::regex;
 using std::regex_match;
@@ -40,20 +41,6 @@ const regex HttpRequest::re_requestline("^([^ ]*) ([^ ]*) HTTP/(\\d+\\.\\d+)$");
 */
 const regex HttpRequest::re_header("^([^:]*):[ \t]*(.*)$");
 
-int HttpRequest::convert_hex(char ch) {
-    if (ch <= 'F' && ch >= 'A') return ch - 'A' + 10;
-    if (ch <= 'f' && ch >= 'a') return ch - 'a' + 10;
-    return ch - '0';
-}
-
-std::string HttpRequest::str_lower(std::string str) {
-    for (auto &ch:str) {
-        if (ch >= 'A' && ch <= 'Z') {
-            ch += 32;
-        }
-    }
-    return str;
-}
 
 void HttpRequest::init() {
     state = REQUEST_LINE;
@@ -133,6 +120,22 @@ std::string HttpRequest::get_post(const char *key) const {
     return "";
 }
 
+std::string HttpRequest::get_header(const std::string &key) const {
+    auto target = headers.find(key);
+    if (target != headers.end()) {
+        return target->second;
+    }
+    return "";
+}
+
+std::string HttpRequest::get_header(const char *key) const {
+    auto target = headers.find(key);
+    if (target != headers.end()) {
+        return target->second;
+    }
+    return "";
+}
+
 bool HttpRequest::parse_requestline(const std::string &line) {
     smatch sub_match;
     if (regex_match(line, sub_match, re_requestline)) {
@@ -199,7 +202,7 @@ void HttpRequest::parse_form_urlencoded() {
                 break;
             }
             case '%': {
-                byte = convert_hex(body[i+1])*16 + convert_hex(body[i+2]);
+                byte = hexch2dec(body[i+1])*16 + hexch2dec(body[i+2]);
                 tmp.push_back(byte);
                 i += 2;
                 break;
@@ -224,7 +227,7 @@ void HttpRequest::parse_uri() {
         auto tmp = request_uri.substr(0, pos);
         for (int i=0; i<tmp.size(); ++i) {
             if (tmp[i] == '%') {
-                auto byte = convert_hex(tmp[i+1])*16 + convert_hex(tmp[i+2]);
+                auto byte = hexch2dec(tmp[i+1])*16 + hexch2dec(tmp[i+2]);
                 path.push_back(byte);
                 i += 2;
             } else {

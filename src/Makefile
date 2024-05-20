@@ -13,7 +13,8 @@ OBJS = ./main.cpp\
 	   ./pool/sqlconnpool.cpp\
 	   ./timer/heap_timer.cpp\
 	   ./server/webserver.cpp\
-	   ./config/config.cpp
+	   ./config/config.cpp\
+	   ./util/util.cpp
 
 all: $(OBJS)
 	mkdir -p $(BIN_DIR)
