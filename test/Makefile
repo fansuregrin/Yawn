@@ -5,9 +5,11 @@ BIN_DIR = ../bin
 TARGET = yawn_test
 OBJS = ./main.cpp\
 	   ./config_unittest.cc\
+	   ./util_unittest.cc\
        ../src/buffer/buffer.cpp\
 	   ../src/log/log.cpp\
 	   ../src/config/config.cpp\
+	   ../src/util/util.cpp
 
 all: $(OBJS)
 	mkdir -p $(BIN_DIR)

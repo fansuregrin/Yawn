@@ -1,7 +1,7 @@
 /**
- * @file test_config.cpp
+ * @file config_unittest.cc
  * @author Fansure Grin
- * @date 2024-03-31
+ * @date 2024-05-19
  * @brief config 模块的测试程序
 */
 #include <gtest/gtest.h>
