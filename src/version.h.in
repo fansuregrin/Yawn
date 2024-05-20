@@ -7,7 +7,7 @@
 #define _VER_PATCH 0
 
 #define NUM2STR(num) #num
-#define _GEN_VERSION_STR(major,minor,patch) NUM2STR(major)"."NUM2STR(minor)"."NUM2STR(patch)
+#define _GEN_VERSION_STR(major,minor,patch) NUM2STR(major) "." NUM2STR(minor) "." NUM2STR(patch)
 #define _VERSION_NUMBER ((_VER_MAJOR) * 10000 + (_VER_MINOR) * 100 + (_VER_PATCH))
 #define _VERSION_STRING _GEN_VERSION_STR(_VER_MAJOR,_VER_MINOR,_VER_PATCH)
 
