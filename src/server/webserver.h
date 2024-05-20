@@ -27,7 +27,7 @@ public:
     const string &ip_, int listen_port_, int timeout_, bool open_linger_,
     int trig_mode_,
     // database
-    const char *sql_host, int sql_port, const char *sql_username,
+    bool enable_db_, const char *sql_host, int sql_port, const char *sql_username,
     const char *sql_passwd, const char *db_name, int conn_pool_num,
     // log
     bool open_log, level_type log_level, int log_queue_size, const char *log_path,
@@ -44,7 +44,7 @@ private:
         const string &ip_, int listen_port_, int timeout_, bool open_linger_,
         int trig_mode_,
         // database
-        const char *sql_host, int sql_port, const char *sql_username,
+        bool enable_db_, const char *sql_host, int sql_port, const char *sql_username,
         const char *sql_passwd, const char *db_name, int conn_pool_num,
         // log
         bool open_log, level_type log_level, int log_queue_size, const char *log_path,
@@ -75,6 +75,7 @@ private:
     bool open_linger; // 是否开启 linger
     int timeout;     // 超时时间，单位为毫秒
     bool is_close;
+    bool enable_db;  // 是否启用数据库连接池
     std::string src_dir;   // 静态资源的根目录
     uint32_t listen_event;  // 与监听socket相关联的事件
     uint32_t conn_event;    // 与连接socket相关联的事件

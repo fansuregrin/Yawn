@@ -14,13 +14,13 @@ WebServer::WebServer(
 // socket
 const string &ip_, int listen_port_, int timeout_, bool open_linger_, int trig_mode_,
 // database
-const char *sql_host, int sql_port, const char *sql_username,
+bool enable_db_, const char *sql_host, int sql_port, const char *sql_username,
 const char *sql_passwd, const char *db_name, int conn_pool_num,
 // logconn_pool_num
 bool open_log, level_type log_level, int log_queue_size, const char *log_path,
 const string &src_dir_, int thread_pool_num) {
     init(ip_, listen_port_, timeout_, open_linger_, trig_mode_,
-        sql_host, sql_port, sql_username, sql_passwd, db_name, conn_pool_num,
+        enable_db_, sql_host, sql_port, sql_username, sql_passwd, db_name, conn_pool_num,
         open_log, log_level, log_queue_size, log_path,
         src_dir_, thread_pool_num);
 }
@@ -30,7 +30,7 @@ void WebServer::init(
 // socket
 const string &ip_, int listen_port_, int timeout_, bool open_linger_, int trig_mode_,
 // database
-const char *sql_host, int sql_port, const char *sql_username,
+bool enable_db_, const char *sql_host, int sql_port, const char *sql_username,
 const char *sql_passwd, const char *db_name, int conn_pool_num,
 // log
 bool open_log, level_type log_level, int log_queue_size, const char *log_path,
@@ -42,6 +42,7 @@ const string &src_dir_, int thread_pool_num)
     open_linger = open_linger_;
     src_dir = src_dir_;
     is_close = false;
+    enable_db = enable_db_;
     thread_pool.reset(new ThreadPool(thread_pool_num));
     tm_heap.reset(new TimeHeap());
     epoller.reset(new Epoller());
@@ -81,6 +82,7 @@ WebServer::WebServer(const Config &cfg) {
         cfg.get_integer("timeout"),
         cfg.get_integer("trig_mode"),
         cfg.get_bool("open_linger"),
+        cfg.get_bool("enable_db"),
         cfg.get_string("sql_host").c_str(),
         cfg.get_integer("sql_port"),
         cfg.get_string("sql_username").c_str(),
