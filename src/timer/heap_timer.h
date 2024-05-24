@@ -12,17 +12,17 @@
 #include <vector>
 #include <unordered_map>
 
-using TimeStemp = std::chrono::high_resolution_clock::time_point;
+using TimePoint = std::chrono::high_resolution_clock::time_point;
 using Clock = std::chrono::high_resolution_clock;
 using MSec = std::chrono::milliseconds;
 using TimeoutCallback = std::function<void()>;
 
 struct Timer {
     int id;
-    TimeStemp expire;
+    TimePoint expire;
     TimeoutCallback cb;
 
-    Timer(int id_, TimeStemp expire_, const TimeoutCallback &cb_)
+    Timer(int id_, TimePoint expire_, const TimeoutCallback &cb_)
         : id(id_), expire(expire_), cb(cb_) {}
     
     bool operator<(const Timer &rhs) {
