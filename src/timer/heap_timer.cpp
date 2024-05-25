@@ -15,7 +15,7 @@ void TimeHeap::add(int id, int timeout, const TimeoutCallback &cb_) {
         // 新的节点，将其插入堆尾再上滤
         idx = heap.size();
         ref[id] = idx;
-        heap.push_back(Timer(id, Clock::now()+MSec(timeout), cb_));
+        heap.emplace_back(id, Clock::now()+MSec(timeout), cb_);
         sift_up(idx);
     } else {
         // 堆中原来就存在此节点
@@ -34,7 +34,9 @@ void TimeHeap::pop() {
 }
 
 void TimeHeap::adjust(int id, int timeout) {
-    assert(!heap.empty() && ref.count(id)>0);
+    if(empty() || ref.count(id) <= 0) {
+        return;
+    }
     heap[ref[id]].expire = Clock::now() + MSec(timeout);
     sift_down(ref[id], heap.size());
 }
@@ -60,7 +62,7 @@ void TimeHeap::tick() {
 
 int TimeHeap::get_next_tick() {
     tick();
-    size_type res = -1;
+    int res = 0;
     if (!heap.empty()) {
         res = std::chrono::duration_cast<MSec>(heap.front().expire - Clock::now())
                 .count();
@@ -96,7 +98,7 @@ bool TimeHeap::sift_down(size_type idx, size_type n) {
     assert(idx >= 0 && idx < n);
     assert(n >= 0 && n <= heap.size());
     size_type hole = idx;
-    size_type child = 2 * hole + 1;
+    size_type child = 2 * hole + 1;  // 左孩子结点
     while (child < n) {
         if (child+1<n && heap[child+1] < heap[child]) {
             ++child;
