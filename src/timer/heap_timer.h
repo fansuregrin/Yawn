@@ -77,8 +77,12 @@ public:
      */
     void tick();
 
+    /**
+     * @brief 获取下一次调用心搏函数的间隔时间
+     * @return 间隔时间（单位为毫秒）
+     */
     int get_next_tick();
-    
+
     void do_work(int id);
 
     bool empty() { return heap.empty(); }
