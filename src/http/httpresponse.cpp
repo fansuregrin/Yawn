@@ -23,19 +23,38 @@ const unordered_map<string, string> HttpResponse::SUFFIX_TYPE = {
     { ".txt",   "text/plain" },
     { ".rtf",   "application/rtf" },
     { ".pdf",   "application/pdf" },
-    { ".word",  "application/nsword" },
+    { ".doc",   "application/msword" },
+    { ".docx",  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+    { ".xls",   "application/vnd.ms-excel"},
+    { ".xlsx",  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+    { ".ppt",   "application/vnd.ms-powerpoint"},
+    { ".pptx",  "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+    { ".ico",   "image/vnd.microsoft.icon"},
+    { ".tif",   "image/tiff"},
+    { ".tiff",  "image/tiff"},
+    { ".svg",   "image/svg+xml"},
     { ".png",   "image/png" },
+    { ".webp",  "image/webp"},
     { ".gif",   "image/gif" },
     { ".jpg",   "image/jpeg" },
     { ".jpeg",  "image/jpeg" },
-    { ".au",    "audio/basic" },
-    { ".mpeg",  "video/mpeg" },
-    { ".mpg",   "video/mpeg" },
+    { ".mp3",   "audio/mpeg"},
+    { ".mpeg",  "video/mpeg"},
+    { ".mpv",   "video/mpv" },
+    { ".mp4",   "video/mp4" },
     { ".avi",   "video/x-msvideo" },
     { ".gz",    "application/x-gzip" },
     { ".tar",   "application/x-tar" },
+    { ".rar",   "application/vnd.rar"},
+    { ".7z",    "application/x-7z-compressed"},
     { ".css",   "text/css "},
     { ".js",    "text/javascript "},
+    { ".json",  "application/json"},
+    { ".woff",  "font/woff"},
+    { ".woff2", "font/woff2"},
+    { ".ttf",   "font/ttf"},
+    { ".otf",   "font/otf"},
+    { ".eot",   "application/vnd.ms-fontobject"}
 };
 
 const unordered_map<int,string> HttpResponse::STATUS_TEXT {
@@ -165,7 +184,7 @@ void HttpResponse::add_headers(Buffer &buf) {
     std::ostringstream headers;
     headers << "Connection: ";
     if (is_keep_alive) {
-        headers << "Keep-Alive\r\n" << "Keep-Alive: timeout=5, max=100\r\n";
+        headers << "Keep-Alive\r\n";
     } else {
         headers << "Close\r\n";
     }
