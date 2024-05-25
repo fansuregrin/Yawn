@@ -22,37 +22,17 @@ class WebServer {
 public:
     using level_type = Log::level_type;
 
-    WebServer(
-    // socket
-    const string &ip_, int listen_port_, int timeout_, bool open_linger_,
-    int trig_mode_,
-    // database
-    bool enable_db_, const char *sql_host, int sql_port, const char *sql_username,
-    const char *sql_passwd, const char *db_name, int conn_pool_num,
-    // log
-    bool open_log, level_type log_level, int log_queue_size, const char *log_path,
-    const string &src_dir_, int thread_pool_num);
-
     WebServer(const Config &cfg);
     
     ~WebServer();
 
     void start();
 private:
-    void init(
-        // socket
-        const string &ip_, int listen_port_, int timeout_, bool open_linger_,
-        int trig_mode_,
-        // database
-        bool enable_db_, const char *sql_host, int sql_port, const char *sql_username,
-        const char *sql_passwd, const char *db_name, int conn_pool_num,
-        // log
-        bool open_log, level_type log_level, int log_queue_size, const char *log_path,
-        
-        const string &src_dir_, int thread_pool_num
-    );
-    
-    bool init_socket();
+    void init_db_pool(bool enable_db_, const char *sql_host, int sql_port,
+        const char *sql_username, const char *sql_passwd,
+        const char *db_name, int conn_pool_num);
+    bool init_socket(const string &ip_, int listen_port_,
+        int timeout_, bool open_linger_, int trig_mode_);
     void init_event_mode(int trig_mode);
 
     void add_client(int fd, const sockaddr_in &addr);

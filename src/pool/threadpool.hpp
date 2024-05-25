@@ -17,7 +17,8 @@
 
 class ThreadPool {
 public:
-    explicit ThreadPool(int thread_count=8): pool(std::make_shared<Pool>()) {
+    explicit ThreadPool(int thread_count_=8)
+    : pool(std::make_shared<Pool>()), thread_count(thread_count_) {
         assert(thread_count > 0);
         for (int i=0; i<thread_count; ++i) {
             std::thread([pool_ = pool] {
@@ -60,6 +61,8 @@ public:
         }
         pool->cond.notify_one();
     }
+
+    size_t get_thread_count() { return thread_count; }
 private:
     struct Pool {
         std::mutex mtx;
@@ -68,6 +71,7 @@ private:
         std::queue<std::function<void()>> tasks;
     };
     std::shared_ptr<Pool> pool;
+    size_t thread_count;
 };
 
 #endif

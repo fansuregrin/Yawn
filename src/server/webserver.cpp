@@ -10,92 +10,57 @@
 #include "webserver.h"
 
 
-WebServer::WebServer(
-// socket
-const string &ip_, int listen_port_, int timeout_, bool open_linger_, int trig_mode_,
-// database
-bool enable_db_, const char *sql_host, int sql_port, const char *sql_username,
-const char *sql_passwd, const char *db_name, int conn_pool_num,
-// logconn_pool_num
-bool open_log, level_type log_level, int log_queue_size, const char *log_path,
-const string &src_dir_, int thread_pool_num) {
-    init(ip_, listen_port_, timeout_, open_linger_, trig_mode_,
-        enable_db_, sql_host, sql_port, sql_username, sql_passwd, db_name, conn_pool_num,
-        open_log, log_level, log_queue_size, log_path,
-        src_dir_, thread_pool_num);
-}
-
-
-void WebServer::init(
-// socket
-const string &ip_, int listen_port_, int timeout_, bool open_linger_, int trig_mode_,
-// database
-bool enable_db_, const char *sql_host, int sql_port, const char *sql_username,
-const char *sql_passwd, const char *db_name, int conn_pool_num,
-// log
-bool open_log, level_type log_level, int log_queue_size, const char *log_path,
-const string &src_dir_, int thread_pool_num)
-{
-    ip = ip_;
-    listen_port = listen_port_;
-    timeout = timeout_;
-    open_linger = open_linger_;
-    src_dir = src_dir_;
-    is_close = false;
+void WebServer::init_db_pool(
+    bool enable_db_, const char *sql_host, int sql_port,
+    const char *sql_username, const char *sql_passwd,
+    const char *db_name, int conn_pool_num
+) {
     enable_db = enable_db_;
-    thread_pool.reset(new ThreadPool(thread_pool_num));
-    tm_heap.reset(new TimeHeap());
-    epoller.reset(new Epoller());
-
-    HttpConn::user_count = 0;
-    HttpConn::src_dir = src_dir;
-    SQLConnPool::get_instance()->init(sql_host, sql_port, sql_username,
-        sql_passwd, db_name, conn_pool_num);
-    init_event_mode(trig_mode_);
-    if (!init_socket()) {
-        is_close = true;
-    }
-
-    if (open_log) {
-        Log::get_instance()->init(log_level, log_path, ".log", log_queue_size);
-        if (is_close) {
-            LOG_ERROR("====== Server initialization error ======");
-        } else {
-            LOG_INFO("====== Server initialized ======");
-            LOG_INFO("Listen on %s:%d, open-linger: %s", ip.c_str(), listen_port,
-                (open_linger ? "true" : "false"));
-            LOG_INFO("Listen mode: %s, Open connection mode: %s",
-                ((listen_event & EPOLLET) ? "ET" : "LT"),
-                ((conn_event & EPOLLET) ? "ET" : "LT"));
-            LOG_INFO("Log level: %d", log_level);
-            LOG_INFO("Resource directory: %s", src_dir.c_str());
-            LOG_INFO("Number of connections in SQL-Pool: %d", conn_pool_num);
-            LOG_INFO("Number of threads in Thread-Pool: %d", thread_pool_num);
-        }
+    if (enable_db_) {
+        SQLConnPool::get_instance()->init(sql_host, sql_port, sql_username,
+            sql_passwd, db_name, conn_pool_num);
+        LOG_INFO("Number of connections in SQL-Pool: %d", conn_pool_num);
     }
 }
 
-WebServer::WebServer(const Config &cfg) {
-    init(
+WebServer::WebServer(const Config &cfg):
+is_close(false), tm_heap(new TimeHeap()), epoller(new Epoller()) {
+    LOG_INFO("====== Server initialization ======");
+
+    // 初始化 socket
+    if (!init_socket(
         cfg.get_string("listen_ip"),
         cfg.get_integer("listen_port"),
         cfg.get_integer("timeout"),
-        cfg.get_integer("trig_mode"),
         cfg.get_bool("open_linger"),
+        cfg.get_integer("trig_mode")
+    )) {
+        is_close = true;
+    }
+
+    src_dir = cfg.get_string("src_dir");
+    LOG_INFO("Resource directory: %s", src_dir.c_str());
+    auto thread_count = cfg.get_integer("thread_pool_num");
+    thread_pool.reset(new ThreadPool(thread_count));
+    LOG_INFO("Number of threads in Thread-Pool: %d", thread_count);
+
+    HttpConn::user_count = 0;
+    HttpConn::src_dir = src_dir;
+
+    // 初始化数据库连接池
+    init_db_pool(
         cfg.get_bool("enable_db"),
         cfg.get_string("sql_host").c_str(),
         cfg.get_integer("sql_port"),
         cfg.get_string("sql_username").c_str(),
         cfg.get_string("sql_passwd").c_str(),
         cfg.get_string("db_name").c_str(),
-        cfg.get_integer("conn_pool_num"),
-        cfg.get_bool("open_log"),
-        cfg.get_integer("log_level"),
-        cfg.get_integer("log_queue_size"),
-        cfg.get_string("log_path").c_str(),
-        cfg.get_string("src_dir"),
-        cfg.get_integer("thread_pool_num")
-    );
+        cfg.get_integer("conn_pool_num"));
+
+    if (is_close) {
+        LOG_ERROR("Server initialization error");
+        exit(-1);
+    }
 }
 
 WebServer::~WebServer() {
@@ -139,7 +104,16 @@ void WebServer::start() {
     }
 }
 
-bool WebServer::init_socket() {
+bool WebServer::init_socket(
+    const string &ip_, int listen_port_, int timeout_,
+    bool open_linger_, int trig_mode_
+) {
+    ip = ip_;
+    listen_port = listen_port_;
+    timeout = timeout_;
+    open_linger = open_linger_;
+    init_event_mode(trig_mode_);
+
     int ret;
     
     struct sockaddr_in addr;
@@ -201,7 +175,11 @@ bool WebServer::init_socket() {
     }
 
     set_nonblocking(listen_fd);
-    LOG_INFO("Server listen on %s:%d", ip, listen_port);
+    LOG_INFO("Listen on %s:%d, open-linger: %s", ip.c_str(), listen_port,
+            (open_linger ? "true" : "false"));
+    LOG_INFO("Listen mode: %s, Open connection mode: %s",
+        ((listen_event & EPOLLET) ? "ET" : "LT"),
+        ((conn_event & EPOLLET) ? "ET" : "LT"));
     return true;
 }
 
