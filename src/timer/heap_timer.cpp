@@ -62,12 +62,16 @@ void TimeHeap::tick() {
 
 int TimeHeap::get_next_tick() {
     tick();
-    int res = 0;
+    int res = -1;
     if (!heap.empty()) {
         res = std::chrono::duration_cast<MSec>(heap.front().expire - Clock::now())
                 .count();
+        // 如果下一个要处理的定时任务已经超时，则需要立即处理
+        // 所以等待的时间设置为 0
         if (res < 0) res = 0;
     }
+    // 当定时任务为空时，无需处理定时任务，可以安心地等待
+    // 等待的时间设置为 -1
     return res;
 }
 
