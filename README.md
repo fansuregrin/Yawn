@@ -54,7 +54,10 @@ camke --build .
 ```
 
 ## TODO Lists
-- [ ] Use `gtest` to re-write test code.
+- [x] Use `gtest` to re-write test code.
+- [ ] Implement processing of HTTP range requests.
+- [ ] Implement a configuration file similar to that used by nginx.
+- [ ] Implement forwarding of Post requests.
 - [ ] Implement *circular buffer*.
 
 ## Acknowledgements
