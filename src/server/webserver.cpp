@@ -44,7 +44,7 @@ is_close(false), tm_heap(new TimeHeap()), epoller(new Epoller()) {
     thread_pool.reset(new ThreadPool(thread_count));
     LOG_INFO("Number of threads in Thread-Pool: %d", thread_count);
 
-    HttpConn::user_count = 0;
+    HttpConn::conn_count = 0;
     HttpConn::src_dir = src_dir;
 
     // 初始化数据库连接池
@@ -258,7 +258,7 @@ void WebServer::deal_listen() {
         int fd = accept(listen_fd, (sockaddr*)&addr, &addr_len);
         if (fd < 0) {
             break;
-        } else if (HttpConn::user_count >= MAX_FD) {
+        } else if (HttpConn::conn_count >= MAX_FD) {
             send_error_msg(fd, "Server busy!");
             LOG_WARN("Clients are full!");
             break;

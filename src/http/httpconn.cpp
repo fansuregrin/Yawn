@@ -13,7 +13,7 @@
 
 std::string HttpConn::src_dir;
 bool HttpConn::is_ET;
-std::atomic<int> HttpConn::user_count;
+std::atomic<int> HttpConn::conn_count;
 
 HttpConn::HttpConn(): fd(-1), is_close(true), iov_cnt(0) {
     bzero(ip, sizeof(ip));
@@ -28,22 +28,22 @@ void HttpConn::init(int sock_fd, const sockaddr_in &addr_) {
     assert(sock_fd > 0);
     fd = sock_fd;
     addr = addr_;
-    ++user_count;
+    ++conn_count;
     write_buf.retrieve_all();
     read_buf.retrieve_all();
     is_close = false;
-    LOG_INFO("<client %d, %s:%d> connected! Usercount: %d", fd, get_ip(),
-        get_port(), user_count.load());
+    LOG_INFO("<client %d, %s:%d> connected! Connection Count: %d", fd, get_ip(),
+        get_port(), conn_count.load());
 }
 
 void HttpConn::close_conn() {
     response.unmap_file();
     if (!is_close) {
         is_close = true;
-        --user_count;
+        --conn_count;
         close(fd);
-        LOG_INFO("<client %d, %s:%d> quited! Usercount: %d", fd, get_ip(),
-            get_port(), user_count.load());
+        LOG_INFO("<client %d, %s:%d> quited! Connection Count: %d", fd, get_ip(),
+            get_port(), conn_count.load());
     }
 }
 

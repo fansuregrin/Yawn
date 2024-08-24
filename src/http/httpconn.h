@@ -40,7 +40,7 @@ public:
 
     static std::string src_dir;
     static bool is_ET;
-    static std::atomic<int> user_count;
+    static std::atomic<int> conn_count;
 private:
     int fd;
     struct sockaddr_in addr;
