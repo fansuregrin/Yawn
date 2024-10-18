@@ -1,4 +1,4 @@
-# WebServer
+# Yawn
 
 A high-performance WEB server implemented in C++, which can achieve tens of thousands of QPS after webbenchh stress test.
 
