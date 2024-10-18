@@ -18,11 +18,14 @@ int main(int argc, char* argv[]) {
 
     // 初始化日志
     if (cfg.get_bool("open_log")) {
-        Log::get_instance()->init(
-            cfg.get_integer("log_level"),
-            cfg.get_string("log_path"),
-            ".log",
-            cfg.get_integer("log_queue_size"));
+        AsyncLogger::GetInstance().Init(
+            cfg.get_integer("log_type"),
+            cfg.get_string("log_dir"),
+            cfg.get_string("log_filename"),
+            cfg.get_integer("log_max_file_size"),
+            StringToLogLevel(cfg.get_string("log_level")),
+            cfg.get_integer("log_queue_size")
+        );
     }
 
     WebServer server(cfg);

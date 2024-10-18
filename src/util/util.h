@@ -71,4 +71,6 @@ std::string dec2hexstr(T num) {
     return hexstr+curr;
 }
 
+tm get_current_time();
+
 #endif

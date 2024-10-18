@@ -50,3 +50,10 @@ std::string str_lower(std::string str) {
     }
     return str;
 }
+
+tm get_current_time() {
+    time_t now = time(nullptr);
+    tm now_tm;
+    localtime_r(&now, &now_tm);
+    return now_tm;
+}

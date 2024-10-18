@@ -20,8 +20,6 @@
 
 class WebServer {
 public:
-    using level_type = Log::level_type;
-
     WebServer(const Config &cfg);
     
     ~WebServer();

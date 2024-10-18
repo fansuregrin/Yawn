@@ -60,7 +60,7 @@ const char *passwd, const char *db_name, int conn_num) {
         conn_que.push(conn);
     }
     LOG_INFO("The SQL-Connection-Pool was successfully initialized, with a"
-        " total of eight connections in the pool.")
+        " total of eight connections in the pool.");
     max_conn_num = conn_num;
     sem_init(&sem_id, 0, max_conn_num);
 }

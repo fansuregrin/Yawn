@@ -7,7 +7,6 @@
 #include <iostream>
 #include <fstream>
 #include "config.h"
-#include "../log/log.h"
 
 
 std::ostream& operator<<(std::ostream &os, const Config &cfg) {
@@ -20,9 +19,9 @@ std::ostream& operator<<(std::ostream &os, const Config &cfg) {
 
 Config::Config(const string &filename) {
     if (parse_file(filename)) {
-        LOG_INFO("Load config from \"%s\".", filename.c_str());
+        printf("Load config from \"%s\".", filename.c_str());
     } else {
-        LOG_WARN("Failed to load config from \"%s\"! "
+        printf("Failed to load config from \"%s\"! "
             "Use default config instead!", filename.c_str());
         gen_default();
     }
@@ -60,7 +59,7 @@ int Config::get_integer(const string &key, int default_val) const {
     try {
         ret = std::stoi(target->second);
     } catch (const std::exception &ex) {
-        LOG_DEBUG("%s", ex.what());
+        fprintf(stderr, "%s", ex.what());
     }
     return ret;
 }
@@ -74,7 +73,7 @@ double Config::get_float(const string &key, double default_val) const {
     try {
         ret = std::stod(target->second);
     } catch (const std::exception &ex) {
-        LOG_DEBUG("%s", ex.what());
+        fprintf(stderr, "%s", ex.what());
     }
     return ret;
 }
@@ -100,7 +99,7 @@ Config::size_type  Config::items_num() const {
 bool Config::parse_file(const string &filename) {
     std::ifstream fs(filename);
     if (!fs.is_open()) {
-        LOG_DEBUG("Failed to open config file: \"%s\"!", filename.c_str());
+        fprintf(stderr, "Failed to open config file: \"%s\"!", filename.c_str());
         return false;
     }
 
@@ -169,20 +168,30 @@ bool Config::parse_line(const string &line) {
 void Config::gen_default() {
     tb.insert(
         {
-            {"listen_ip", "0.0.0.0"},
-            {"listen_port", "6789"},
-            {"timeout", "60000"},
-            {"open_linger", "true"},
-            {"trig_mode", "3"},
-            {"sql_host", "localhost"},
-            {"sql_port", "3306"},
-            {"conn_pool_num", "10"},
-            {"open_log", "true"},
-            {"log_level", "1"},
-            {"log_queue_size", "1000"},
-            {"log_path", "/tmp/webserver_logs"},
-            {"src_dir", "/var/www/html"},
-            {"thread_pool_num", "8"}
+            // server
+            {"listen_ip", "0.0.0.0"}, // 监听的 IP 地址
+            {"listen_port", "6789"},  // 监听的端口号
+            {"timeout", "60000"},     // 定时时间
+            {"open_linger", "true"},  // 开启 linger
+            {"trig_mode", "3"},       // 监听socket 和 连接socket 上触发事件的模式
+            {"thread_pool_num", "8"}, // 线程池中线程的数量
+            {"src_dir", "/var/www/html"}, // 静态资源根目录
+            // db
+            {"enable_db", "false"},   // 是否开启数据库连接池
+            {"sql_host", "localhost"}, // MySQL 的服务地址
+            {"sql_port", "3306"},  // MySQL 的端口号
+            {"sql_username", "username"}, // MySQL 的账户名称
+            {"sql_passwd", "password"}, // MySQL 的账户密码
+            {"conn_pool_num", "10"}, // MySQL 数据库连接池中的连接个数
+            {"db_name", "yawn"},  // 要连接的数据库名称
+            // log
+            {"open_log", "true"}, // 是否开启日志
+            {"log_type", "3"},    // 日志输出方式
+            {"log_level", "1"},   // 日志等级
+            {"log_max_file_size", "20971520"}, // 日志文件的最大大小，单位为字节
+            {"log_queue_size", "1024"}, // 日志模块中阻塞队列的大小
+            {"log_dir", "/tmp/webserver_logs"}, // 存放日志文件的目录
+            {"log_filename", "yawn"} // 日志文件的文件名
         }
     );
 }

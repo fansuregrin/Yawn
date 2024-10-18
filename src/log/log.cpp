@@ -1,224 +1,171 @@
-/**
- * @file log.cpp
- * @author Fansure Grin
- * @date 2024-03-25
- * @brief source file for log
-*/
-#include <cstdio>
+#include <chrono>
 #include <ctime>
-#include <cstring>
-#include <cassert>
-#include <cstdarg>
+#include <thread>
+#include <sstream>
+#include <iomanip>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <string>
+#include <unistd.h>
 #include "log.h"
+#include "../util/util.h"
 
 
-Log* Log::get_instance() {
-    static Log log;
-    return &log;
-}
-
-void Log::flush_log_thread() {
-    get_instance()->async_write();
-}
-
-Log::Log()
-: line_num(0), level(1), fp(nullptr), is_async(false),
-  is_open_(false), blk_deq(nullptr), write_thread(nullptr) {}
-
-Log::~Log() {
-    if (write_thread && write_thread->joinable()) {
-        while (!blk_deq->empty()) {
-            blk_deq->flush();
-        }
-        blk_deq->close();
-        write_thread->join();
-    }
-    if (fp) {
-        lock_guard lck(mtx);
-        flush();
-        fclose(fp);
+std::string LogLevelToString(LogLevel lv) {
+    switch (lv) {
+        case DEBUG: return "DEBUG";
+        case INFO: return "INFO";
+        case WARN: return "WARN";
+        case ERROR: return "ERROR";
+        default: return "UNKNOWN";
     }
 }
 
-void Log::append_loglevel_title(level_type level_) {
-    switch (level_) {
-        case 0: {
-            buf.append("[DEBUG]: ", 9);
-            break;
-        }
-        case 1: {
-            buf.append("[INFO] : ", 9);
-            break;
-        }
-        case 2: {
-            buf.append("[WARN] : ", 9);
-            break;
-        }
-        case 3: {
-            buf.append("[ERROR]: ", 9);
-            break;
-        }
-        default: {
-            buf.append("[INFO] : ", 9);
-            break;
-        }
-    }
-}
-
-int Log::get_line_num(FILE * fp_) {
-    if (!fp_) return -1;
-    char ch;
-    int line_num_ = 0;
-    while ((ch = fgetc(fp_)) != EOF) {
-        if (ch == '\n') ++line_num_;
-    }
-    return line_num_;
-}
-
-void
-Log::init(level_type level_, const std::string &path_,
-          const std::string &suffix_, int max_queue_size) {
-    is_open_ = true;
-    level = level_;
-    if (max_queue_size > 0) {
-        is_async = true;
-        if (!blk_deq) {
-            std::unique_ptr<BlockingDeque<std::string>> tmp_deq(new 
-                BlockingDeque<std::string>(max_queue_size));
-            blk_deq = std::move(tmp_deq);
-            std::unique_ptr<std::thread> tmp_thread(new 
-                std::thread(flush_log_thread));
-            write_thread = std::move(tmp_thread);
-        }
+LogLevel StringToLogLevel(const std::string &lv) {
+    if (lv == "DEBUG") {
+        return DEBUG;
+    } else if (lv == "INFO") {
+        return INFO;
+    } else if (lv == "WARN") {
+        return WARN;
+    } else if (lv == "ERROR") {
+        return ERROR;
     } else {
-        is_async = false;
+        return UNKNOWN;
     }
+}
 
-    time_t curr_tm = time(nullptr);  // current time
-    struct tm curr_tm_human = *localtime(&curr_tm);
-    path = path_;
-    suffix = suffix_;
-    char date[DATE_LEN];
-    memset(date, '\0', DATE_LEN);
-    snprintf(date, DATE_LEN-1, "%04d_%02d_%02d",
-             1900 + curr_tm_human.tm_year, 1 + curr_tm_human.tm_mon,
-             curr_tm_human.tm_mday);
-    filename = path + '/' + date + suffix;
-    today = curr_tm_human.tm_mday;
+std::string LogEvent::ToString() {
+    auto now_tp = std::chrono::system_clock::now();
+    auto now_dur = now_tp.time_since_epoch();
     
-    {
-        lock_guard lck(mtx);
-        buf.retrieve_all();
-        // 关闭已经打开的文件
-        if (fp) {
-            flush();
-            fclose(fp);
+    char fmt_tm_buf[64] = {0};
+    std::time_t now_time_t = std::chrono::system_clock::to_time_t(now_tp);
+    struct tm now_tm;
+    localtime_r(&now_time_t, &now_tm);
+    auto len = std::strftime(fmt_tm_buf, sizeof(fmt_tm_buf), "%Y-%m-%d %H:%M:%S", &now_tm);
+    // 计算微秒
+    auto micro_sec = std::chrono::duration_cast<std::chrono::microseconds>(
+        now_dur - std::chrono::duration_cast<std::chrono::seconds>(now_dur)).count();
+    snprintf(fmt_tm_buf+len, sizeof(fmt_tm_buf)-len-1, ".%ld", micro_sec);
+
+    std::ostringstream oss;
+    oss << "[" << std::setw(5) << std::left << LogLevelToString(m_lv) << "] ["
+        << std::setw(26) << std::left << fmt_tm_buf << "] ["
+        << m_pid << ":" << m_tid << "] "
+        << "[" << m_filename << ":" << m_line_no << "] ";
+
+    return oss.str();
+}
+
+const char * const AsyncLogger::ext = ".log";
+
+AsyncLogger &AsyncLogger::GetInstance() {
+    static AsyncLogger logger;
+    return logger;
+}
+
+AsyncLogger::AsyncLogger()
+: m_type(0), m_log_level(UNKNOWN), m_closed(true), m_inited(false), m_fp(nullptr) {}
+
+AsyncLogger::~AsyncLogger() {
+    CloseLogger();
+}
+
+void AsyncLogger::Init(uint8_t type, const std::string &logdir, const std::string &filename,
+int max_file_size, LogLevel log_level, std::size_t queue_size) {
+    std::unique_lock<std::mutex> lck(m_mtx);
+    if (m_inited) return;
+    m_type = type;
+    m_log_level = log_level;
+    m_logdir = logdir;
+    if (*m_logdir.rbegin() != '/') {
+        m_logdir += '/';
+    }
+    m_filename = filename;
+    m_max_file_size = max_file_size;
+    m_seq_no = 1;
+    m_queue.reset(new BlockingQueue<std::string>(queue_size));
+    m_write_thread.reset(new std::thread([] {
+        GetInstance().AsyncWrite();
+    }));
+    if (m_fp) {
+        std::fclose(m_fp);
+    }
+
+    int ret = mkdir(logdir.c_str(), 0755);
+    if (ret < 0 && errno != EEXIST) {
+        perror("mkdir failed");
+        exit(EXIT_FAILURE);
+    }
+
+    tm now_tm = get_current_time();
+    char suffix[24] = {0};
+    int len = std::strftime(suffix, sizeof(suffix)-1, "_%Y%m%d", &now_tm);
+    snprintf(suffix+len, sizeof(suffix)-len-1, "_%d%s", m_seq_no, ext);
+    FILE * tmp =  std::fopen((m_logdir + m_filename + suffix).c_str(), "a");
+    if (!tmp) {
+        std::perror("fopen failed");
+        exit(EXIT_FAILURE);
+    }
+    m_fp = tmp;
+    m_inited = true;
+    m_closed = false;
+}
+
+void AsyncLogger::PushLog(const std::string &log_str) {
+    m_queue->push(log_str);
+}
+
+void AsyncLogger::AsyncWrite() {
+    std::string msg;
+    while (m_queue->pop(msg)) {
+        std::lock_guard<std::mutex> lck(m_mtx);
+        if (m_type && STDOUT_MASK) {
+            printf("%s", msg.c_str());
         }
-        // 打开日志文件
-        fp = fopen(filename.c_str(), "a+");
-        if (!fp) {
-            mkdir(path.c_str(), 0777);
-            fp = fopen(filename.c_str(), "a+");
+        if (m_type && FILE_MASK) {
+            while (std::ftell(m_fp) >= m_max_file_size) {
+                tm now_tm = get_current_time();
+                char suffix[24] = {0};
+                int len = std::strftime(suffix, sizeof(suffix)-1, "_%Y%m%d", &now_tm);
+                snprintf(suffix+len, sizeof(suffix)-len-1, "_%d%s", ++m_seq_no, ext);
+                std::fclose(m_fp);
+                m_fp = nullptr;
+                FILE *tmp = std::fopen((m_logdir+m_filename+suffix).c_str(), "a");
+                if (!tmp) break;
+                m_fp = tmp;
+            }
+            std::fputs(msg.c_str(), m_fp);
+            std::fflush(m_fp);
         }
-        assert(fp);
-        line_num = get_line_num(fp);
     }
 }
 
-void Log::write(level_type level_, const char *format, ...) {
-    struct timeval now = {0, 0};
-    gettimeofday(&now, nullptr);
-    struct tm curr_tm = *localtime(&now.tv_sec);
-    va_list var_list;
+bool AsyncLogger::Closed() const {
+    std::lock_guard<std::mutex> lck(m_mtx);
+    return m_closed;
+}
 
-    // 如果日期改变或日志行数已经达到最大,则更换新的日志文件
-    while (today != curr_tm.tm_mday || (line_num && line_num%MAX_LINE_NUM==0)) {
-        unique_lock lck(mtx);
+void AsyncLogger::CloseLogger() {
+    std::unique_lock<std::mutex> lck(m_mtx);
+    if (m_closed) return;
+    if (m_queue) {
         lck.unlock();
-
-        char date[DATE_LEN];
-        memset(date, '\0', DATE_LEN);
-        snprintf(date, DATE_LEN-1, "%04d_%02d_%02d", 1900+curr_tm.tm_year,
-                1+curr_tm.tm_mon, curr_tm.tm_mday);
-        if (today != curr_tm.tm_mday) {
-            filename = path + '/' + date + suffix;
-            today = curr_tm.tm_mday;
-            line_num = 0;
-        } else {
-            filename = path + '/' + date + '-' + 
-                std::to_string(line_num/MAX_LINE_NUM) + suffix;
-        }
-
-        lck.lock();
-        flush();
-        fclose(fp);
-        fp = fopen(filename.c_str(), "a+");
-        assert(fp);
-        int new_line_num = get_line_num(fp);
-        if (new_line_num < MAX_LINE_NUM) {
-            line_num += new_line_num;
-            break;
-        }
-        line_num += new_line_num;
+        m_queue->close();
     }
-
-    {
-        unique_lock lck(mtx);
-        ++line_num;
-        // 将日期和时间写入缓冲区
-        char datetime[64];
-        memset(datetime, '\0', sizeof(datetime));
-        int len = snprintf(datetime, sizeof(datetime)-1,
-            "%04d-%02d-%02d %02d:%02d:%02d.%06ld ",
-            1900+curr_tm.tm_year, 1+curr_tm.tm_mon, curr_tm.tm_mday, curr_tm.tm_hour,
-            curr_tm.tm_min, curr_tm.tm_sec, now.tv_usec);
-        assert(len > 0);
-        buf.append(datetime, len);
-        append_loglevel_title(level_);
-        // 将日志内容写入缓冲区
-        va_start(var_list, format);
-        len = vsnprintf(buf.begin_write(), buf.writable_bytes(), format, var_list);
-        va_end(var_list);
-        buf.has_written(len);
-        buf.append("\n\0", 2);
-
-        if (is_async && blk_deq && !blk_deq->full()) {
-            blk_deq->push_back(buf.retrieve_all_as_str());
-        } else {
-            fputs(buf.peek(), fp);
-            buf.retrieve_all();
-        }
+    lck.lock();
+    if (m_write_thread && m_write_thread->joinable()) {
+        lck.unlock();
+        m_write_thread->join();
     }
-}
-
-void Log::flush() {
-    if (is_async) {
-        blk_deq->flush();
+    lck.lock();
+    if (m_fp) {
+        std::fclose(m_fp);
+        m_fp = nullptr;
     }
-    fflush(fp);
+    m_inited = false;
+    m_closed = true;
 }
 
-Log::level_type Log::get_level() {
-    lock_guard lck(mtx);
-    return level;
-}
-
-void Log::set_level(level_type level_) {
-    lock_guard lck(mtx);
-    level = level_;
-}
-
-bool Log::is_open() {
-    return is_open_;
-}
-
-void Log::async_write() {
-    std::string str;
-    while (blk_deq->pop(str)) {
-        lock_guard lck(mtx);
-        fputs(str.c_str(), fp);
-    }
+LogLevel AsyncLogger::GetLogLevel() {
+    return m_log_level;
 }

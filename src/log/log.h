@@ -1,80 +1,127 @@
-/**
- * @file log.h
- * @author Fansure Grin
- * @date 2024-03-25
- * @brief header file for log
-*/
 #ifndef LOG_H
 #define LOG_H
 
-#include <memory>
 #include <string>
 #include <thread>
 #include <mutex>
-#include "../blocking_deque/blocking_deque.hpp"
-#include "../buffer/buffer.h"
+#include <queue>
+#include <memory>
+#include <vector>
+#include <unistd.h>
+#include "../blocking_queue/blocking_queue.hpp"
+#include "../util/util.h"
 
-class Log {
-public:
-    using lock_guard = std::lock_guard<std::mutex>;
-    using unique_lock = std::unique_lock<std::mutex>;
-    using level_type = int;
 
-    static Log* get_instance();
-    static void flush_log_thread();
+#define LOG_DEBUG(fmt, ...) do {\
+    Log(LogEvent(DEBUG, __FILE__, __LINE__, getpid(), std::this_thread::get_id()),\
+    fmt, ##__VA_ARGS__); } while(0)
+#define LOG_INFO(fmt, ...)  do {\
+    Log(LogEvent(INFO,  __FILE__, __LINE__, getpid(), std::this_thread::get_id()),\
+    fmt, ##__VA_ARGS__); } while(0)
+#define LOG_WARN(fmt, ...)  do {\
+    Log(LogEvent(WARN,  __FILE__, __LINE__, getpid(), std::this_thread::get_id()),\
+    fmt, ##__VA_ARGS__); } while(0)
+#define LOG_ERROR(fmt, ...) do {\
+    Log(LogEvent(ERROR, __FILE__, __LINE__, getpid(), std::this_thread::get_id()),\
+    fmt, ##__VA_ARGS__); } while(0)
 
-    void init(level_type level_, const std::string &path_,
-              const std::string &suffix_, int max_queue_size);
 
-    void flush();
-    void write(level_type level_, const char *format, ...);
-
-    level_type get_level();
-    void set_level(level_type level_);
-    bool is_open();
-    void async_write();
-private:
-    Log();
-    virtual ~Log();
-    void append_loglevel_title(level_type level_);
-    int get_line_num(FILE * fp_);
-
-    static const int DATE_LEN = 28;
-    static const int MAX_LINE_NUM = 50000;
-
-    std::string path;
-    std::string suffix;
-    std::string filename;
-    int line_num;
-    level_type level;
-    FILE * fp;
-    bool is_async;
-    bool is_open_;
-    int today;
-
-    Buffer buf;
-
-    std::unique_ptr<BlockingDeque<std::string>> blk_deq;
-    std::unique_ptr<std::thread> write_thread;
-    std::mutex mtx;
+enum LogLevel {
+    UNKNOWN = 0,
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR,
+    LOG_LEVEL_COUNT
 };
 
-#define LOG_BASE(level, format, ...) \
-    do {\
-        Log *log = Log::get_instance();\
-        if (log->is_open() && log->get_level()<=level) {\
-            log->write(level, format, ##__VA_ARGS__);\
-            log->flush();\
-        }\
-    } while (0);
+std::string LogLevelToString(LogLevel lv);
 
-#define LOG_DEBUG(format, ...) \
-    do {LOG_BASE(0, format, ##__VA_ARGS__)} while(0);
-#define LOG_INFO(format, ...) \
-    do {LOG_BASE(1, format, ##__VA_ARGS__)} while(0);
-#define LOG_WARN(format, ...) \
-    do {LOG_BASE(2, format, ##__VA_ARGS__)} while(0);
-#define LOG_ERROR(format, ...) \
-    do {LOG_BASE(3, format, ##__VA_ARGS__)} while(0);
+LogLevel StringToLogLevel(const std::string &lv);
 
-#endif // LOG_H
+class LogEvent {
+public:
+    LogEvent(LogLevel log_lv, const std::string &filename, int line_no, int pid, std::thread::id tid)
+    : m_lv(log_lv), m_filename(filename), m_line_no(line_no), m_pid(pid), m_tid(tid) {}
+
+    LogLevel GetLogLevel() { return m_lv; }
+
+    std::string GetFilename() { return m_filename; }
+
+    int GetLineNumber() { return m_line_no; }    
+
+    std::string ToString();
+
+private:
+    LogLevel m_lv;           // 日志级别
+    std::string m_filename;  // 文件名
+    int m_line_no;           // 行号
+    int m_pid;               // 进程 id
+    std::thread::id m_tid;   // 线程 id
+};
+
+class AsyncLogger {
+public:
+    static constexpr uint8_t LOG_TYPE_STDOUT = 1;   // 
+    static constexpr uint8_t LOG_TYPE_FILE = 2;
+    static constexpr uint8_t LOG_TYPE_STDOUT_FILE = 3;
+
+    static AsyncLogger &GetInstance();
+
+    void Init(uint8_t type, const std::string &logdir, const std::string &filename,
+        int max_file_size, LogLevel log_level, std::size_t queue_size);
+
+    void PushLog(const std::string &log_str);
+
+    void CloseLogger();
+
+    bool Closed() const;
+
+    LogLevel GetLogLevel();
+
+private:
+    static constexpr uint8_t STDOUT_MASK = 1;
+    static constexpr uint8_t FILE_MASK = 2;
+    static const char * const ext;
+
+    AsyncLogger();
+
+    virtual ~AsyncLogger();
+
+    void AsyncWrite();
+
+    // logger 的输出类型：
+    //   - LOG_TYPE_STDOUT：只输出到标准输出 (STDOUT)
+    //   - LOG_TYPE_FILE：只输出到日志文件
+    //   - LOG_TYPE_STDOUT_FILE：输出到 STDOUT 和文件
+    uint8_t m_type;
+    LogLevel m_log_level;    // 日志级别
+    std::string m_filename;  // 日志文件名称
+    int m_seq_no;            // 日志文件序号
+    std::string m_logdir;    // 日志目录
+    int m_max_file_size;     // 单个日志文件最大容量，单位为字节
+    bool m_closed;           // 关闭标志
+    bool m_inited;           // 初始化标志
+    FILE *m_fp;              // 文件指针
+    mutable std::mutex m_mtx;
+    std::unique_ptr<std::thread> m_write_thread; // 写日志线程
+    std::unique_ptr<BlockingQueue<std::string>> m_queue;
+};
+
+template <typename... Args>
+void Log(LogEvent &&log_event, const char* fmt, Args&&... args) {
+    std::string log_str;
+    int msg_len = snprintf(nullptr, 0, fmt, args...);
+    if (msg_len > 0) {
+        log_str.resize(msg_len + 1);
+        snprintf((char *)&log_str[0], msg_len + 1, fmt, args...);
+        log_str.pop_back();
+    }
+
+    log_str = log_event.ToString() + log_str + "\n";
+    AsyncLogger &logger = AsyncLogger::GetInstance();
+    if (logger.Closed() || logger.GetLogLevel() > log_event.GetLogLevel()) return;
+    logger.PushLog(log_str);
+}
+
+#endif // end of LOG_H
