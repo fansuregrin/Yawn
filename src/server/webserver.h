@@ -26,7 +26,7 @@ public:
 
     void start();
 private:
-    void init_db_pool(bool enable_db, const char *sql_host, int sql_port,
+    void init_db_pool(const char *sql_host, int sql_port,
         const char *sql_username, const char *sql_passwd,
         const char *db_name, int conn_pool_num);
     bool init_socket(const string &ip, int listen_port,
@@ -34,15 +34,15 @@ private:
     void init_event_mode(int trig_mode);
 
     void add_client(int fd, const sockaddr_in &addr);
-    void close_conn(HttpConn *client);
-    void extend_time(HttpConn *client);
+    void close_conn(std::shared_ptr<HttpConn> client);
+    void extend_time(std::shared_ptr<HttpConn> client);
     void send_error_msg(int fd, const char *msg);
     void deal_listen();
-    void deal_read(HttpConn *client);
-    void on_read(HttpConn *client);
-    void deal_write(HttpConn *client);
-    void on_write(HttpConn *client);
-    void on_process(HttpConn *client);
+    void deal_read(std::shared_ptr<HttpConn> client);
+    void on_read(std::shared_ptr<HttpConn> client);
+    void deal_write(std::shared_ptr<HttpConn> client);
+    void on_write(std::shared_ptr<HttpConn> client);
+    void on_process(std::shared_ptr<HttpConn> client);
 
     static int set_nonblocking(int fd);
     static const int MAX_FD = 65536;
@@ -60,7 +60,8 @@ private:
     std::unique_ptr<TimeHeap> m_tm_heap; // 时间堆
     std::unique_ptr<ThreadPool> m_thread_pool; // 线程池，存放工作线程
     std::unique_ptr<Epoller> m_epoller;
-    std::unordered_map<int,HttpConn> m_clients; // 已连接socket的文件描述符 -> 连接对象
+    // 已连接socket的文件描述符 -> 连接对象
+    std::unordered_map<int,std::shared_ptr<HttpConn>> m_clients;
 };
 
 #endif // WEBSERVER_H

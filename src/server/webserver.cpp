@@ -11,16 +11,13 @@
 
 
 void WebServer::init_db_pool(
-    bool enable_db, const char *sql_host, int sql_port,
+    const char *sql_host, int sql_port,
     const char *sql_username, const char *sql_passwd,
     const char *db_name, int conn_pool_num
 ) {
-    m_enable_db = enable_db;
-    if (m_enable_db) {
-        SQLConnPool::get_instance()->init(sql_host, sql_port, sql_username,
-            sql_passwd, db_name, conn_pool_num);
-        LOG_INFO("Number of connections in SQL-Pool: %d", conn_pool_num);
-    }
+    SQLConnPool::get_instance()->init(sql_host, sql_port, sql_username,
+        sql_passwd, db_name, conn_pool_num);
+    LOG_INFO("Number of connections in SQL-Pool: %d", conn_pool_num);
 }
 
 WebServer::WebServer(const Config &cfg):
@@ -48,32 +45,35 @@ m_is_close(false), m_tm_heap(new TimeHeap()), m_epoller(new Epoller()) {
     HttpConn::src_dir = m_src_dir;
 
     // 初始化数据库连接池
-    init_db_pool(
-        cfg.get_bool("enable_db"),
-        cfg.get_string("sql_host").c_str(),
-        cfg.get_integer("sql_port"),
-        cfg.get_string("sql_username").c_str(),
-        cfg.get_string("sql_passwd").c_str(),
-        cfg.get_string("db_name").c_str(),
-        cfg.get_integer("conn_pool_num"));
+    m_enable_db = cfg.get_bool("enable_db");
+    if (m_enable_db) {
+        init_db_pool(
+            cfg.get_string("sql_host").c_str(),
+            cfg.get_integer("sql_port"),
+            cfg.get_string("sql_username").c_str(),
+            cfg.get_string("sql_passwd").c_str(),
+            cfg.get_string("db_name").c_str(),
+            cfg.get_integer("conn_pool_num"));
+    }
 
     if (m_is_close) {
         LOG_ERROR("Server initialization error");
-        exit(-1);
     }
 }
 
 WebServer::~WebServer() {
     close(m_listen_fd);
     m_is_close = true;
-    SQLConnPool::get_instance()->close();
+    if (m_enable_db) {
+        SQLConnPool::get_instance()->close();
+    }
+    LOG_INFO("====== Server closed ======");
 }
 
 void WebServer::start() {
+    if (m_is_close) return;
+    LOG_INFO("====== Server start ======");
     int wait_tm = -1;
-    if (!m_is_close) {
-        LOG_INFO("====== Server start ======");
-    }
     while (!m_is_close) {
         if (m_timeout > 0) {
             // 处理定时事件
@@ -87,15 +87,15 @@ void WebServer::start() {
                 deal_listen();
             } else if (events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
                 if (m_clients.count(fd)) {
-                    close_conn(&m_clients[fd]);
+                    close_conn(m_clients[fd]);
                 }
             } else if (events & EPOLLIN) {
                 if (m_clients.count(fd)) {
-                    deal_read(&m_clients[fd]);
+                    deal_read(m_clients[fd]);
                 }
             } else if (events & EPOLLOUT) {
                 if (m_clients.count(fd)) {
-                    deal_write(&m_clients[fd]);
+                    deal_write(m_clients[fd]);
                 }
             } else {
                 LOG_ERROR("Unexpected event!");
@@ -212,7 +212,6 @@ void WebServer::init_event_mode(int trig_mode) {
  * @return 原来的文件状态标志
 */
 int WebServer::set_nonblocking(int fd) {
-    assert(fd >= 0);
     int old_option = fcntl(fd, F_GETFL);
     int new_option = old_option | O_NONBLOCK;
     fcntl(fd, F_SETFL, new_option);
@@ -220,23 +219,24 @@ int WebServer::set_nonblocking(int fd) {
 }
 
 void WebServer::add_client(int fd, const sockaddr_in &addr) {
-    assert(fd >= 0);
-    m_clients[fd].init(fd, addr);
+    if (fd < 0) return;
+    m_clients[fd] = std::make_shared<HttpConn>();
+    m_clients[fd]->init(fd, addr);
     if (m_timeout > 0) {
         m_tm_heap->add(fd, m_timeout,
-            std::bind(&WebServer::close_conn, this, &m_clients[fd]));
+            std::bind(&WebServer::close_conn, this, m_clients[fd]));
     }
     m_epoller->add_fd(fd, m_conn_event | EPOLLIN);
     set_nonblocking(fd);
 }
 
-void WebServer::close_conn(HttpConn * client) {
+void WebServer::close_conn(std::shared_ptr<HttpConn> client) {
     if (!client) return;
     m_epoller->del_fd(client->get_fd());
     client->close_conn();
 }
 
-void WebServer::extend_time(HttpConn *client) {
+void WebServer::extend_time(std::shared_ptr<HttpConn> client) {
     if (m_timeout > 0) {
         m_tm_heap->adjust(client->get_fd(), m_timeout);
     }
@@ -267,13 +267,13 @@ void WebServer::deal_listen() {
     } while (m_listen_event & EPOLLET);
 }
 
-void WebServer::deal_read(HttpConn *client) {
+void WebServer::deal_read(std::shared_ptr<HttpConn> client) {
     if (!client) return;
     extend_time(client);
     m_thread_pool->add_task(std::bind(&WebServer::on_read, this, client));
 }
 
-void WebServer::on_read(HttpConn *client) {
+void WebServer::on_read(std::shared_ptr<HttpConn> client) {
     if (!client) return;
     int ret = -1, read_errno = 0;
     ret = client->read(&read_errno);
@@ -284,7 +284,7 @@ void WebServer::on_read(HttpConn *client) {
     on_process(client);
 }
 
-void WebServer::on_process(HttpConn *client) {
+void WebServer::on_process(std::shared_ptr<HttpConn> client) {
     if (client->process()) {
         m_epoller->mod_fd(client->get_fd(), m_conn_event | EPOLLOUT);
     } else {
@@ -292,13 +292,13 @@ void WebServer::on_process(HttpConn *client) {
     }
 }
 
-void WebServer::deal_write(HttpConn *client) {
+void WebServer::deal_write(std::shared_ptr<HttpConn> client) {
     if (!client) return;
     extend_time(client);
     m_thread_pool->add_task(std::bind(&WebServer::on_write, this, client));
 }
 
-void WebServer::on_write(HttpConn *client) {
+void WebServer::on_write(std::shared_ptr<HttpConn> client) {
     if(!client) return;
     int ret = -1, write_errno = 0;
     ret = client->write(&write_errno);
