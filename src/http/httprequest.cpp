@@ -180,10 +180,11 @@ void HttpRequest::parse_post() {
 }
 
 void HttpRequest::parse_form_urlencoded() {
-    if (body.size() == 0) return;
+    auto body_len = body.size();
+    if (body_len == 0) return;
     std::string tmp, key;
     int byte;
-    for (int i=0; i<body.size(); ++i) {
+    for (decltype(body_len) i=0; i<body_len; ++i) {
         char ch = body[i];
         switch (ch) {
             case '+': {
@@ -225,7 +226,7 @@ void HttpRequest::parse_uri() {
         // abs_path
         auto pos = request_uri.find_first_of('?');
         auto tmp = request_uri.substr(0, pos);
-        for (int i=0; i<tmp.size(); ++i) {
+        for (decltype(tmp.size()) i=0; i<tmp.size(); ++i) {
             if (tmp[i] == '%') {
                 auto byte = hexch2dec(tmp[i+1])*16 + hexch2dec(tmp[i+2]);
                 path.push_back(byte);

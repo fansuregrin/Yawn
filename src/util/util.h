@@ -57,7 +57,7 @@ std::string str_lower(std::string str);
 */
 template <typename T>
 std::string dec2hexstr(T num) {
-    constexpr auto cnt = sizeof(T) * 8 / 4;
+    constexpr int cnt = sizeof(T) * 8 / 4;
     char hexstr[cnt+1] = {0};
     for (int i=0; i<cnt; ++i) {
         hexstr[cnt-i-1] = dec2hexch(num & 0xf);

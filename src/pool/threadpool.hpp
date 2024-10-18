@@ -20,7 +20,7 @@ public:
     explicit ThreadPool(int thread_count_=8)
     : pool(std::make_shared<Pool>()), thread_count(thread_count_) {
         assert(thread_count > 0);
-        for (int i=0; i<thread_count; ++i) {
+        for (decltype(thread_count) i=0; i<thread_count; ++i) {
             std::thread([pool_ = pool] {
                 std::unique_lock<std::mutex> lck(pool_->mtx);
                 while (true) {
