@@ -13,16 +13,16 @@
 
 
 #define LOG_DEBUG(fmt, ...) do {\
-    Log(LogEvent(DEBUG, __FILE__, __LINE__, getpid(), std::this_thread::get_id()),\
+    Log(LogEvent(DEBUG, __FILE__, __LINE__, getpid(), gettid()),\
     fmt, ##__VA_ARGS__); } while(0)
 #define LOG_INFO(fmt, ...)  do {\
-    Log(LogEvent(INFO,  __FILE__, __LINE__, getpid(), std::this_thread::get_id()),\
+    Log(LogEvent(INFO,  __FILE__, __LINE__, getpid(), gettid()),\
     fmt, ##__VA_ARGS__); } while(0)
 #define LOG_WARN(fmt, ...)  do {\
-    Log(LogEvent(WARN,  __FILE__, __LINE__, getpid(), std::this_thread::get_id()),\
+    Log(LogEvent(WARN,  __FILE__, __LINE__, getpid(), gettid()),\
     fmt, ##__VA_ARGS__); } while(0)
 #define LOG_ERROR(fmt, ...) do {\
-    Log(LogEvent(ERROR, __FILE__, __LINE__, getpid(), std::this_thread::get_id()),\
+    Log(LogEvent(ERROR, __FILE__, __LINE__, getpid(), gettid()),\
     fmt, ##__VA_ARGS__); } while(0)
 
 
@@ -41,7 +41,10 @@ LogLevel StringToLogLevel(const std::string &lv);
 
 class LogEvent {
 public:
-    LogEvent(LogLevel log_lv, const std::string &filename, int line_no, int pid, std::thread::id tid)
+    using pid_t = decltype(getpid());
+    using tid_t = decltype(gettid());
+
+    LogEvent(LogLevel log_lv, const std::string &filename, int line_no, pid_t pid, tid_t tid)
     : m_lv(log_lv), m_filename(filename), m_line_no(line_no), m_pid(pid), m_tid(tid) {}
 
     LogLevel GetLogLevel() { return m_lv; }
@@ -56,8 +59,8 @@ private:
     LogLevel m_lv;           // 日志级别
     std::string m_filename;  // 文件名
     int m_line_no;           // 行号
-    int m_pid;               // 进程 id
-    std::thread::id m_tid;   // 线程 id
+    pid_t m_pid;             // 进程 id
+    tid_t m_tid;             // 线程 id
 };
 
 class AsyncLogger {
