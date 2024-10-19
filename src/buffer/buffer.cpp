@@ -132,7 +132,7 @@ void Buffer::make_space(size_type sz) {
     if (prependable_bytes() + writable_bytes() < sz) {
         // “前置的空闲空间”加上“可写入的空间”已经不够写入 `sz` 个字节
         // 需要扩容（如果大小没有超过 vector<char> 的 capcity，则不会申请内存空间）
-        buff.resize(writable_bytes() + sz);
+        buff.resize(read_pos + sz);
     } else {
         // “前置的空闲空间”加上“可写入的空间”已经足够写入 `sz` 个字节
         // 此时无需扩容，只需要将可读数据移动到缓冲区的起始位置，覆盖“前置的空闲空间”即可
