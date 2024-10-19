@@ -95,10 +95,6 @@ public:
      */
     const char * begin_write() const;
 
-    const char * begin_write_const();
-
-    void has_written(size_type sz);
-
     /**
      * @brief 确保能写入指定长度的数据
      * @param sz 数据长度（单位为字节）

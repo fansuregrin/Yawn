@@ -57,8 +57,8 @@ bool HttpRequest::parse(Buffer &buf) {
             parse_body(buf.retrieve_all_as_str());
             continue;
         }
-        const char *line_end = std::search(buf.peek(), buf.begin_write_const(),
-            CRLF, CRLF+2);
+        const char *line_end = std::search(
+            buf.peek(), const_cast<const char*>(buf.begin_write()), CRLF, CRLF+2);
         std::string line(buf.peek(), line_end);
         switch (state) {
             case REQUEST_LINE: {

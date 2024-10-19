@@ -63,14 +63,6 @@ const char * Buffer::begin_write() const {
     return begin() + write_pos;
 }
 
-const char * Buffer::begin_write_const() {
-    return begin() + write_pos;
-}
-
-void Buffer::has_written(size_type sz) {
-    write_pos += sz;
-}
-
 void Buffer::ensure_writable(size_type sz) {
     if (writable_bytes() < sz) {
         make_space(sz);
