@@ -12,40 +12,20 @@
 #include "buffer.h"
 
 
-/**
- * @brief 初始化缓冲区
- * @param size 缓冲区初始大小
-*/
 Buffer::Buffer(size_type size): buff(size), read_pos(0), write_pos(0) {}
 
-/**
- * @brief 缓冲区中可读的字节数
- * @return 字节数目
-*/
 Buffer::size_type Buffer::readable_bytes() const {
     return write_pos - read_pos;
 }
 
-/**
- * @brief 缓冲区中可写的字节数
- * @return 字节数目
-*/
 Buffer::size_type Buffer::writable_bytes() const {
     return buff.size() - write_pos;
 }
 
-/**
- * @brief 缓冲区中前置的空闲字节数目
- * @return 字节数目
-*/
 Buffer::size_type Buffer::prependable_bytes() const {
     return read_pos;
 }
 
-/**
- * @brief 查看缓冲区当前可读的数据的位置
- * @return 缓冲区当前可读数据的起始字节地址
-*/
 const char * Buffer::peek() const {
     return begin() + read_pos;
 }
@@ -118,12 +98,6 @@ void Buffer::append(const Buffer &other) {
     append(other.peek(), other.readable_bytes());
 }
 
-/**
- * @brief 从指定的文件描述符中读取数据
- * @param fd 文件描述符
- * @param saved_errno `int`类型的指针，用于保存出错时的错误码
- * @return 读取的数据长度（单位为字节），长度小于零说明读取出错。
-*/
 ssize_t Buffer::read_fd(int fd, int * saved_errno) {
     char extra_buf[65536];
     struct iovec iov[2];
@@ -144,12 +118,6 @@ ssize_t Buffer::read_fd(int fd, int * saved_errno) {
     return len;
 }
 
-/**
- * @brief 向指定的文件描述符中写入数据
- * @param fd 文件描述符
- * @param saved_errno `int`类型的指针，用于保存出错时的错误码
- * @return 写入的数据长度（单位为字节），长度小于零说明写入出错。
-*/
 ssize_t Buffer::write_fd(int fd, int * saved_errno) {
     int len = write(fd, peek(), readable_bytes());
     if (len < 0) {
@@ -160,26 +128,22 @@ ssize_t Buffer::write_fd(int fd, int * saved_errno) {
     return len;
 }
 
-/**
- * @brief 获取缓冲区的起始地址
- * @return 起始地址
-*/
 char * Buffer::begin() {
     return &*buff.begin();
 }
 
-/**
- * @brief 获取缓冲区的起始地址 (const 版本)
- * @return 起始地址
-*/
 const char * Buffer::begin() const {
     return &*buff.begin();
 }
 
 void Buffer::make_space(size_type sz) {
     if (prependable_bytes() + writable_bytes() < sz) {
+        // “前置的空闲空间”加上“可写入的空间”已经不够写入 `sz` 个字节
+        // 需要扩容（如果大小没有超过 vector<char> 的 capcity，则不会申请内存空间）
         buff.resize(writable_bytes() + sz);
     } else {
+        // “前置的空闲空间”加上“可写入的空间”已经足够写入 `sz` 个字节
+        // 此时无需扩容，只需要将可读数据移动到缓冲区的起始位置，覆盖“前置的空闲空间”即可
         size_type readable_len = readable_bytes();
         std::copy(begin()+read_pos, begin()+write_pos, begin());
         read_pos = 0;
