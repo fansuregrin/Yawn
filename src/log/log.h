@@ -13,16 +13,16 @@
 
 
 #define LOG_DEBUG(fmt, ...) do {\
-    Log(LogEvent(DEBUG, __FILE__, __LINE__, getpid(), gettid()),\
+    Log(LogEvent(LogLevel::DEBUG, __FILE__, __LINE__, getpid(), gettid()),\
     fmt, ##__VA_ARGS__); } while(0)
 #define LOG_INFO(fmt, ...)  do {\
-    Log(LogEvent(INFO,  __FILE__, __LINE__, getpid(), gettid()),\
+    Log(LogEvent(LogLevel::INFO,  __FILE__, __LINE__, getpid(), gettid()),\
     fmt, ##__VA_ARGS__); } while(0)
 #define LOG_WARN(fmt, ...)  do {\
-    Log(LogEvent(WARN,  __FILE__, __LINE__, getpid(), gettid()),\
+    Log(LogEvent(LogLevel::WARN,  __FILE__, __LINE__, getpid(), gettid()),\
     fmt, ##__VA_ARGS__); } while(0)
 #define LOG_ERROR(fmt, ...) do {\
-    Log(LogEvent(ERROR, __FILE__, __LINE__, getpid(), gettid()),\
+    Log(LogEvent(LogLevel::ERROR, __FILE__, __LINE__, getpid(), gettid()),\
     fmt, ##__VA_ARGS__); } while(0)
 
 

@@ -88,7 +88,7 @@ ssize_t HttpConn::write(int *save_errno) {
             iov[0].iov_len -= len;
             write_buf.retrieve(len);
         }
-    } while (is_ET || to_write_bytes() > 10240);
+    } while (is_ET || to_write_bytes());
 
     return total_len;
 }
@@ -98,10 +98,14 @@ bool HttpConn::process() {
     if (read_buf.readable_bytes() <= 0) {
         return false;
     }
-    if (request.parse(read_buf)) {
+    
+    auto parse_res = request.parse(read_buf);
+    if (parse_res == HttpRequest::PARSE_RESULT::OK) {
         response.init(src_dir, request, 200);
-    } else {
+    } else if (parse_res == HttpRequest::PARSE_RESULT::ERROR) {
         response.init(src_dir, 400);
+    } else if (parse_res == HttpRequest::PARSE_RESULT::NOT_FINISH) {
+        return false;
     }
 
     // 响应的状态行、头部和响应体
@@ -123,7 +127,7 @@ bool HttpConn::process() {
         response.get_content_length()
     );
     LOG_DEBUG("response bytes: %d, file bytes: %d", to_write_bytes(),
-        response.filelen());
+        iov[1].iov_len);
     return true;
 }
 

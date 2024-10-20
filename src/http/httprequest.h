@@ -18,17 +18,23 @@ class HttpRequest {
 public:
 
     enum PARSE_STATE {
-        REQUEST_LINE,
-        HEADERS,
-        BODY,
-        FINISH
+        REQUEST_LINE,  // 解析请求行
+        HEADERS,       // 解析请求头
+        BODY,          // 解析请求体
+        FINISH         // 解析完成
+    };
+
+    enum PARSE_RESULT {
+        OK = 0,      // 解析成功（合法且完整的 HTTP 请求）
+        ERROR,       // 解析失败（非法的 HTTP 请求）
+        NOT_FINISH   // 解析失败（不完整的 HTTP 请求）
     };
 
     HttpRequest() { init(); }
     ~HttpRequest() = default;
 
     void init();
-    bool parse(Buffer &buf);
+    HttpRequest::PARSE_RESULT parse(Buffer &buf);
 
     bool is_keep_alive() const;
     std::string get_path() const;

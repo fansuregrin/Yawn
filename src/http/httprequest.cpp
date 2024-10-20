@@ -43,22 +43,31 @@ const regex HttpRequest::re_header("^([^:]*):[ \t]*(.*)$");
 
 
 void HttpRequest::init() {
-    state = REQUEST_LINE;
-    method = path = version = body = "";
-    headers.clear();
-    post.clear();
+    if (state == PARSE_STATE::FINISH) {
+        state = PARSE_STATE::REQUEST_LINE;
+        method = path = version = body = "";
+        headers.clear();
+        post.clear();
+    }
 }
 
-bool HttpRequest::parse(Buffer &buf) {
+HttpRequest::PARSE_RESULT HttpRequest::parse(Buffer &buf) {
+    if (buf.readable_bytes() <= 0) return PARSE_RESULT::ERROR;
+    
+    // 解析请求行和请求头
     const char CRLF[] = "\r\n";
-    if (buf.readable_bytes() <= 0) return false;
     while (buf.readable_bytes() && state != BODY) {
-        const char *line_end = std::search(
-            buf.peek(), const_cast<const char*>(buf.begin_write()), CRLF, CRLF+2);
+        const char *data_begin = buf.peek();
+        const char *data_end = data_begin + buf.readable_bytes();
+        const char *line_end = std::search(data_begin, data_end, CRLF, CRLF+2);
+        if (line_end == data_end) {
+            // 没有完整的一行数据，需要继续从socket中读入数据到缓冲区
+            return PARSE_RESULT::NOT_FINISH;
+        }
         std::string line(buf.peek(), line_end);
         if (state == PARSE_STATE::REQUEST_LINE) {
             if (!parse_requestline(line)) {
-                return false;
+                return PARSE_RESULT::ERROR;
             }
             parse_uri();
         } else if (state == PARSE_STATE::HEADERS) {
@@ -66,14 +75,22 @@ bool HttpRequest::parse(Buffer &buf) {
         }
         buf.retrieve_until(line_end+2);  // 跳过 "\r\n"
     }
+    
     // 解析请求体
     long content_length = 0;
     auto content_length_str = get_header("content-length");
     if (!content_length_str.empty()) {
         content_length = std::stol(content_length_str);
     }
-    parse_body(buf.retrieve_as_str(content_length));
-    return true;
+    if (content_length == 0) {
+        state = FINISH;
+        return PARSE_RESULT::OK;
+    } else if (content_length <= buf.readable_bytes()) {
+        parse_body(buf.retrieve_as_str(content_length));
+        return PARSE_RESULT::OK;
+    } else {
+        return PARSE_RESULT::NOT_FINISH;
+    }
 }
 
 bool HttpRequest::is_keep_alive() const {
