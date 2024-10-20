@@ -31,7 +31,6 @@ const char * Buffer::peek() const {
 }
 
 void Buffer::retrieve(size_type len) {
-    assert(len <= readable_bytes());
     if (len < readable_bytes()) {
         read_pos += len;
     } else {
@@ -40,13 +39,23 @@ void Buffer::retrieve(size_type len) {
 }
 
 void Buffer::retrieve_until(const char * end) {
-    assert(end >= peek());
+    if (end < peek()) return;
+    end = std::min(end, const_cast<const char*>(begin_write()));
     retrieve(end - peek());
 }
 
 void Buffer::retrieve_all() {
     read_pos = 0;
     write_pos = 0;
+}
+
+std::string Buffer::retrieve_as_str(size_type len) {
+    if (len >= readable_bytes()) {
+        len = readable_bytes();
+    }
+    std::string str(peek(), len);
+    retrieve(len);
+    return str;
 }
 
 std::string Buffer::retrieve_all_as_str() {

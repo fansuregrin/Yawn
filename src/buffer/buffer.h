@@ -84,6 +84,12 @@ public:
     std::string retrieve_all_as_str();
 
     /**
+     * @brief 取回指定长度的数据，并作为字符串返回
+     * @return 一个字符串
+     */
+    std::string retrieve_as_str(size_type len);
+
+    /**
      * @brief 获取可写空间的起始地址
      * @return 内存地址
      */

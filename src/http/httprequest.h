@@ -24,17 +24,6 @@ public:
         FINISH
     };
 
-    enum HTTP_CODE {
-        NO_REQUEST = 0,
-        GET_REQUEST,
-        BAD_REQUEST,
-        NO_RESOURCE,
-        FORBIDDEN_REQUEST,
-        FILE_REQUEST,
-        INTERNEL_ERROR,
-        CLOSED_CONNECTION
-    };
-
     HttpRequest() { init(); }
     ~HttpRequest() = default;
 

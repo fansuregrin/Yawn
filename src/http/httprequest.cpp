@@ -52,34 +52,27 @@ void HttpRequest::init() {
 bool HttpRequest::parse(Buffer &buf) {
     const char CRLF[] = "\r\n";
     if (buf.readable_bytes() <= 0) return false;
-    while (buf.readable_bytes() && state != FINISH) {
-        if (state == BODY) {
-            parse_body(buf.retrieve_all_as_str());
-            continue;
-        }
+    while (buf.readable_bytes() && state != BODY) {
         const char *line_end = std::search(
             buf.peek(), const_cast<const char*>(buf.begin_write()), CRLF, CRLF+2);
         std::string line(buf.peek(), line_end);
-        switch (state) {
-            case REQUEST_LINE: {
-                if (!parse_requestline(line)) {
-                    return false;
-                }
-                parse_uri();
-                break;
+        if (state == PARSE_STATE::REQUEST_LINE) {
+            if (!parse_requestline(line)) {
+                return false;
             }
-            case HEADERS: {
-                parse_header(line);
-                // 如果缓冲区可读字节只有两个（即"\r\n"），则直接转到FINISH状态
-                // 说明此次请求不携带消息体
-                if (buf.readable_bytes() <= 2) {
-                    state = FINISH;
-                }
-                break;
-            }
+            parse_uri();
+        } else if (state == PARSE_STATE::HEADERS) {
+            parse_header(line);
         }
-        buf.retrieve_until(line_end+2);
+        buf.retrieve_until(line_end+2);  // 跳过 "\r\n"
     }
+    // 解析请求体
+    long content_length = 0;
+    auto content_length_str = get_header("content-length");
+    if (!content_length_str.empty()) {
+        content_length = std::stol(content_length_str);
+    }
+    parse_body(buf.retrieve_as_str(content_length));
     return true;
 }
 
@@ -143,10 +136,10 @@ bool HttpRequest::parse_requestline(const std::string &line) {
         request_uri = sub_match[2];
         version = sub_match[3];
         state = HEADERS;
-        LOG_DEBUG("%s", line.c_str());
+        LOG_DEBUG("request line: %s", line.c_str());
         return true;
     }
-    LOG_ERROR("Invalid RequestLine: \"%s\"", line.c_str());
+    LOG_ERROR("invalid request line: \"%s\"", line.c_str());
     return false;
 }
 
@@ -169,12 +162,12 @@ void HttpRequest::parse_body(const std::string &content) {
         parse_post();
     }
     state = FINISH;
-    LOG_DEBUG("body length: %d", content.size());
+    LOG_DEBUG("request body length: %d", content.size());
 }
 
 void HttpRequest::parse_post() {
     if (method != "POST") return;
-    if (headers["Content-Type"] == "application/x-www-form-urlencoded") {
+    if (get_header("content-length") == "application/x-www-form-urlencoded") {
         parse_form_urlencoded();
     }
 }
