@@ -105,23 +105,7 @@ std::string HttpRequest::get_post(const std::string &key) const {
     return "";
 }
 
-std::string HttpRequest::get_post(const char *key) const {
-    auto target = post.find(key);
-    if (target != post.end()) {
-        return target->second;
-    }
-    return "";
-}
-
 std::string HttpRequest::get_header(const std::string &key) const {
-    auto target = headers.find(key);
-    if (target != headers.end()) {
-        return target->second;
-    }
-    return "";
-}
-
-std::string HttpRequest::get_header(const char *key) const {
     auto target = headers.find(key);
     if (target != headers.end()) {
         return target->second;
