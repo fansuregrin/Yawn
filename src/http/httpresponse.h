@@ -9,50 +9,26 @@
 
 #include <unordered_map>
 #include <string>
-#include <sys/stat.h>
-#include "../buffer/buffer.h"
-#include "httprequest.h"
-
-using std::unordered_map;
-using std::string;
 
 class HttpResponse {
 public:
+    friend class HttpConn;
+
     HttpResponse();
     ~HttpResponse();
 
-    void init(const string &src_dir_, const HttpRequest &req_, int status_code_ = -1);
-    void init(const string &src_dir_, int status_code_);
-    void unmap_file();
-    void make_response(Buffer &buf);
-    char* get_file();
-    size_t filelen() const;
+    void init();
+    int get_status_code() const;
+    size_t get_content_length() const;
+    std::string get_status_line() const;
+    std::string get_headers() const;
 
-    int get_status_code() const { return status_code; }
-    int get_content_length() const { return content_length; }
 private:
-    void add_statusline(Buffer &buf);
-    void add_headers(Buffer &buf);
-    void set_err_content();
-    bool check_resource_and_map(const std::string &fp);
-    bool map_file(const std::string &fp);
-    string get_file_type(const std::string &fp);
-    string get_default_err_content();
-
     int status_code;
-    bool is_keep_alive;
-    HttpRequest req;
-    string path;
-    string src_dir;
-    string body;
-    string content_type;
-    size_t content_length{0};
-    char * mm_file;  // 文件映射到内存中的地址
-    struct stat mm_file_stat;
-
-    static const unordered_map<string,string> SUFFIX_TYPE;
-    static const unordered_map<int,string> STATUS_TEXT;
-    static const unordered_map<int,string> CODE_PATH;
+    std::string status_text;
+    std::string version;
+    std::unordered_map<std::string,std::string> headers;
+    std::string body;
 };
 
 #endif // HTTP_RESPONSE_H

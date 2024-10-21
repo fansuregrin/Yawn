@@ -7,8 +7,11 @@
 #include <cstring>
 #include <cassert>
 #include <unistd.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 #include "httpconn.h"
 #include "../log/log.h"
+#include "../version.h"
 
 
 using std::regex;
@@ -41,9 +44,71 @@ const regex HttpConn::re_requestline("^([^ ]*) ([^ ]*) HTTP/(\\d+\\.\\d+)$");
 */
 const regex HttpConn::re_header("^([^:]*):[ \t]*(.*)$");
 
+const std::unordered_map<std::string, std::string> HttpConn::SUFFIX_TYPE = {
+    { ".html",  "text/html" },
+    { ".xml",   "text/xml" },
+    { ".xhtml", "application/xhtml+xml" },
+    { ".txt",   "text/plain" },
+    { ".rtf",   "application/rtf" },
+    { ".pdf",   "application/pdf" },
+    { ".doc",   "application/msword" },
+    { ".docx",  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+    { ".xls",   "application/vnd.ms-excel"},
+    { ".xlsx",  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+    { ".ppt",   "application/vnd.ms-powerpoint"},
+    { ".pptx",  "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+    { ".ico",   "image/vnd.microsoft.icon"},
+    { ".tif",   "image/tiff"},
+    { ".tiff",  "image/tiff"},
+    { ".svg",   "image/svg+xml"},
+    { ".png",   "image/png" },
+    { ".webp",  "image/webp"},
+    { ".gif",   "image/gif" },
+    { ".jpg",   "image/jpeg" },
+    { ".jpeg",  "image/jpeg" },
+    { ".mp3",   "audio/mpeg"},
+    { ".mpeg",  "video/mpeg"},
+    { ".mpv",   "video/mpv" },
+    { ".mp4",   "video/mp4" },
+    { ".avi",   "video/x-msvideo" },
+    { ".gz",    "application/x-gzip" },
+    { ".tar",   "application/x-tar" },
+    { ".rar",   "application/vnd.rar"},
+    { ".7z",    "application/x-7z-compressed"},
+    { ".css",   "text/css "},
+    { ".js",    "text/javascript "},
+    { ".json",  "application/json"},
+    { ".woff",  "font/woff"},
+    { ".woff2", "font/woff2"},
+    { ".ttf",   "font/ttf"},
+    { ".otf",   "font/otf"},
+    { ".eot",   "application/vnd.ms-fontobject"}
+};
+
+const std::unordered_map<int,std::string> HttpConn::STATUS_TEXT {
+    {200, "OK"},
+    {304, "Not Modified"},
+    {400, "Bad Request"},
+    {403, "Forbidden"},
+    {404, "Not Found"},
+    {500, "Internal Server Error"},
+    {505, "HTTP Version Not Supported"}
+};
+
+/**
+ * @todo 改为可配置的
+*/
+const std::unordered_map<int,std::string> HttpConn::CODE_PATH {
+    {400, "/400.html"},
+    {403, "/403.html"},
+    {404, "/404.html"},
+    {500, "/500.html"}
+};
+
 HttpConn::HttpConn(): fd(-1), is_close(true), iov_cnt(0), state(PARSE_STATE::REQUEST_LINE) {
     bzero(ip, sizeof(ip));
     bzero(&addr, sizeof(addr));
+    std::memset(&mm_file_stat, '\0', sizeof(mm_file_stat));
 }
 
 HttpConn::~HttpConn() {
@@ -63,7 +128,7 @@ void HttpConn::init(int sock_fd, const sockaddr_in &addr_) {
 }
 
 void HttpConn::close_conn() {
-    response.unmap_file();
+    unmap_file();
     if (!is_close) {
         is_close = true;
         --conn_count;
@@ -287,29 +352,29 @@ bool HttpConn::process() {
     
     auto parse_res = parse(read_buf);
     if (parse_res == PARSE_RESULT::OK) {
-        response.init(src_dir, request, 200);
+        response.status_code = 200;
     } else if (parse_res == PARSE_RESULT::ERROR) {
-        response.init(src_dir, 400);
+        response.status_code = 400;
     } else if (parse_res == PARSE_RESULT::NOT_FINISH || parse_res == PARSE_RESULT::EMPTY) {
         return false;
     }
 
     // 响应的状态行、头部和响应体
-    response.make_response(write_buf);
+    make_response();
     iov[0].iov_base = const_cast<char*>(write_buf.peek());
     iov[0].iov_len = write_buf.readable_bytes();
     iov_cnt = 1;
     // 响应要发送的文件
-    if (response.filelen() > 0 && response.get_file()) {
-        iov[1].iov_base = response.get_file();
-        iov[1].iov_len = response.filelen();
+    if (get_mm_file_len() > 0 && mm_file) {
+        iov[1].iov_base = mm_file;
+        iov[1].iov_len = get_mm_file_len();
         iov_cnt = 2;
     }
     LOG_INFO(
         // request-line response-code content-length
-        "\"%s %s HTTP/%s\" %d %d",
+        "\"%s %s HTTP/%s\" %d %ld",
         request.get_method().c_str(), request.get_path().c_str(),
-        request.get_version().c_str(), response.get_status_code(),
+        request.get_version().c_str(), response.status_code,
         response.get_content_length()
     );
     LOG_DEBUG("response bytes: %d, file bytes: %d", to_write_bytes(),
@@ -332,4 +397,170 @@ const char* HttpConn::get_ip() {
 
 sockaddr_in HttpConn::get_addr() const {
     return addr;
+}
+
+void HttpConn::make_response() {
+    response.init();
+    if (!request.path.empty()) {
+        // 用户请求的资源路径非空，则检查资源文件并尝试将其映射到内存
+        // 检查资源文件和映射过程都可能会出错，出错会设置相应的状态码
+        if (!check_resource_and_map(src_dir + request.path)) {
+            set_err_content();
+        }
+    }
+    set_status_line();
+    set_headers();
+    write_buf.append(response.get_status_line());
+    write_buf.append(response.get_headers());
+    if (!response.body.empty()) {
+        write_buf.append(response.body);
+    }
+}
+
+bool HttpConn::check_resource_and_map(const std::string &fp) {
+    int ret = stat(fp.c_str(), &mm_file_stat);
+    if (ret == -1) {
+        if (errno == ENOENT) {  
+            // 请求的资源不存在，设置 Not Found 错误码
+            response.status_code = 404;
+        } else {
+            // 其他错误，设置 Internal Server Error 错误码
+            response.status_code = 500;
+        }
+        return false;
+    } else if (S_ISDIR(mm_file_stat.st_mode)) {
+        // 请求的资源是一个目录，设置 Not Found 错误码
+        response.status_code = 404;
+        return false;
+    } else if (!(mm_file_stat.st_mode & S_IROTH)) {
+        // 请求的资源没有读取权限，设置 Forbidden 错误码
+        response.status_code = 403;
+        // 如果不想让客户端知道这个资源是没有权限访问的，可以返回404
+        // 从而让客户端认为要访问的资源不存在，而不是禁止访问
+        // "An origin server that wishes to "hide" the current existence of a
+        // forbidden target resource MAY instead respond with a status code of
+        // 404 (Not Found)."  -- from RFC7231 6.5.3
+        // status_code = 404;
+        return false;
+    }
+
+    // 处理客户端的条件请求
+    auto req_etag = request.get_header("if-none-match");
+    auto tv_ = mm_file_stat.st_mtim.tv_sec;
+    auto etag = dec2hexstr(tv_) + '-' + dec2hexstr(mm_file_stat.st_size);
+    if (req_etag == etag) {
+        response.status_code = 304;
+        return true;
+    }
+
+    // 请求的资源没有问题
+    // 将客户端请求的资源文件映射到内存
+    if (!map_file(fp)) {
+        // 映射失败，设置 Internal Server Error 错误码
+        response.status_code = 500;
+        return false;
+    }
+
+    response.headers["content-type"] = get_file_type(fp);
+    response.headers["content-length"] = std::to_string(mm_file_stat.st_size);
+    return true;
+}
+
+bool HttpConn::map_file(const std::string &fp) {
+    int fd = open(fp.c_str(), O_RDONLY);
+    if (fd < 0) {
+        // 打开文件失败
+        return false;
+    }
+    void *ret = mmap(nullptr, mm_file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (ret == (void *)-1) {
+        // 映射失败
+        close(fd);
+        return false;
+    }
+    mm_file = (char *)ret;
+    close(fd);
+    return true;
+}
+
+std::string HttpConn::get_file_type(const std::string &fp) {
+    const auto pos = fp.find_last_of('.');
+    if (pos == std::string::npos) {
+        return "text/html";
+    }
+    std::string suffix = fp.substr(pos);
+    const auto it = SUFFIX_TYPE.find(suffix);
+    if (it != SUFFIX_TYPE.end()) {
+        return it->second;
+    }
+    return "text/html";
+}
+
+void HttpConn::set_err_content() {
+    if (response.status_code == 200) return;
+    const auto &target = CODE_PATH.find(response.status_code);
+    if (target != CODE_PATH.end()) {
+        if (!check_resource_and_map(src_dir + target->second)) {
+            response.body = get_default_err_content();
+            response.headers["content-type"] = "text/html";
+            response.headers["content-length"] = std::to_string(response.body.size());
+        }
+    } else {
+        response.body = get_default_err_content();
+        response.headers["content-type"] = "text/html";
+        response.headers["content-length"] = std::to_string(response.body.size());
+    }
+}
+
+std::string HttpConn::get_default_err_content() {
+    std::ostringstream content;
+    auto status_code = response.status_code;
+    content << "<html>\n<head><title>" 
+            << status_code << ' ' << STATUS_TEXT.at(status_code)
+            << "</title></head>\n<body>\n<center><h1>"
+            << status_code << ' ' << STATUS_TEXT.at(status_code)
+            << "</h1></center>\n<hr><center>"
+            << _VENDOR_NAME << "/" << _VERSION_STRING
+            << "</center>\n</body>\n</html>";
+    return content.str();
+}
+
+void HttpConn::set_status_line() {
+    response.version = "HTTP/1.1";
+    auto &status_code = response.status_code;
+    const auto &it = STATUS_TEXT.find(status_code);
+    if (it != STATUS_TEXT.end()) {
+        response.status_text = it->second;
+    } else {
+        status_code = 400;
+        response.status_text = "Bad Request";
+    }
+}
+
+void HttpConn::set_headers() {
+    auto &headers = response.headers;
+    headers["connection"] = is_keep_alive() ? "keep-alive" : "close";
+    if (mm_file || response.status_code == 304) {
+        auto tv_ = mm_file_stat.st_mtim.tv_sec;
+        headers["last-modified"] = http_gmt(tv_);
+        headers["etag"] = dec2hexstr(tv_) + '-' + dec2hexstr(mm_file_stat.st_size);
+    }
+    headers["date"] = http_gmt();
+    headers["server"] = std::string(_VENDOR_NAME) + '/' + _VERSION_STRING;
+}
+
+void HttpConn::unmap_file() {
+    if (mm_file) {
+        munmap(mm_file, mm_file_stat.st_size);
+        memset(&mm_file_stat, '\0', sizeof(mm_file_stat));
+        mm_file = nullptr;
+    }
+}
+
+const char * HttpConn::get_mm_file() const {
+    return mm_file;
+}
+
+decltype(stat::st_size) HttpConn::get_mm_file_len() const {
+    return mm_file_stat.st_size;
 }
