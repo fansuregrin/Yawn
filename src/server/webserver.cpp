@@ -21,8 +21,17 @@ void WebServer::init_db_pool(
 }
 
 WebServer::WebServer(const Config &cfg):
-m_is_close(false), m_tm_heap(new TimeHeap()), m_epoller(new Epoller()) {
+m_is_close(false), m_tm_heap(new TimeHeap()) {
     LOG_INFO("====== Server initialization ======");
+
+    int max_num_fds = cfg.get_integer("max_num_fds", 1024);
+    if (max_num_fds < 2) {
+        LOG_ERROR("max_num_fds must be greater than 1");
+        exit(EXIT_FAILURE);
+    }
+    m_epoller.reset(new Epoller(max_num_fds));
+    LOG_INFO("Max number of fds to be watched by epoll: %d", max_num_fds);
+    max_num_conn = max_num_fds - 1;
 
     // 初始化 socket
     if (!init_socket(
@@ -258,7 +267,7 @@ void WebServer::deal_listen() {
         int fd = accept(m_listen_fd, (sockaddr*)&addr, &addr_len);
         if (fd < 0) {
             break;
-        } else if (HttpConn::conn_count >= MAX_FD) {
+        } else if (HttpConn::conn_count >= max_num_conn) {
             send_error_msg(fd, "Server busy!");
             LOG_WARN("Clients are full!");
             break;

@@ -19,10 +19,10 @@ std::ostream& operator<<(std::ostream &os, const Config &cfg) {
 
 Config::Config(const string &filename) {
     if (parse_file(filename)) {
-        printf("Load config from \"%s\".", filename.c_str());
+        printf("Load config from \"%s\"\n", filename.c_str());
     } else {
         printf("Failed to load config from \"%s\"! "
-            "Use default config instead!", filename.c_str());
+            "Use default config instead!\n", filename.c_str());
         gen_default();
     }
 }
@@ -174,6 +174,7 @@ void Config::gen_default() {
             {"timeout", "60000"},     // 定时时间
             {"open_linger", "true"},  // 开启 linger
             {"trig_mode", "3"},       // 监听socket 和 连接socket 上触发事件的模式
+            {"max_num_fds", "1024"},  // epoll 监听的最大文件描述符数量
             {"thread_pool_num", "8"}, // 线程池中线程的数量
             {"src_dir", "/var/www/html"}, // 静态资源根目录
             // db

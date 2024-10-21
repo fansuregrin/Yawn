@@ -45,8 +45,8 @@ private:
     void on_process(std::shared_ptr<HttpConn> client);
 
     static int set_nonblocking(int fd);
-    static const int MAX_FD = 65536;
-
+    
+    int max_num_conn;    // 最大连接数量
     std::string m_ip;    // 监听的 IP 地址
     int m_listen_port;   // 监听的端口号
     int m_listen_fd;     // 标识监听 socket 的文件描述符
