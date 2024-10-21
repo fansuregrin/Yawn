@@ -35,12 +35,6 @@ public:
     ~HttpConn();
 
     HttpConn::PARSE_RESULT parse(Buffer &buf);
-    bool parse_requestline(const std::string &line);
-    bool parse_uri(const std::string &uri);
-    bool parse_header(const std::string &line);
-    void parse_body(const std::string &content);
-    void parse_post();
-    void parse_form_urlencoded();
 
     void init(int sock_fd, const sockaddr_in &addr_);
     void close_conn();
@@ -52,9 +46,7 @@ public:
     const char* get_ip();
     sockaddr_in get_addr() const;
 
-    bool is_keep_alive() const {
-        return request.is_keep_alive();
-    }
+    bool is_keep_alive() const;
 
     int to_write_bytes() {
         return iov[0].iov_len + iov[1].iov_len;
@@ -64,6 +56,13 @@ public:
     static bool is_ET;
     static std::atomic<int> conn_count;
 private:
+    bool parse_requestline(const std::string &line);
+    bool parse_uri(const std::string &uri);
+    bool parse_header(const std::string &line);
+    void parse_body(const std::string &content);
+    void parse_post();
+    void parse_form_urlencoded();
+
     int fd;
     struct sockaddr_in addr;
     char ip[32];

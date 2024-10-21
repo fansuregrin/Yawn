@@ -21,11 +21,6 @@ void HttpRequest::init() {
     post.clear();
 }
 
-bool HttpRequest::is_keep_alive() const {
-    auto target = headers.find("connection");
-    return target != headers.end() && str_lower(target->second) == "keep-alive";
-}
-
 std::string HttpRequest::get_path() const {
     return path;
 }

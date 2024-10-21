@@ -23,7 +23,6 @@ public:
 
     void init();
 
-    bool is_keep_alive() const;
     std::string get_path() const;
     std::string& get_path();
     std::string get_method() const;

@@ -119,6 +119,13 @@ ssize_t HttpConn::write(int *save_errno) {
     return total_len;
 }
 
+bool HttpConn::is_keep_alive() const {
+    auto target = request.headers.find("connection");
+    return (
+        target != request.headers.end() && 
+        str_lower(target->second) == "keep-alive");
+}
+
 HttpConn::PARSE_RESULT HttpConn::parse(Buffer &buf) {
     if (buf.readable_bytes() <= 0) return PARSE_RESULT::EMPTY;
     
