@@ -16,25 +16,12 @@
 
 class HttpRequest {
 public:
-
-    enum PARSE_STATE {
-        REQUEST_LINE,  // 解析请求行
-        HEADERS,       // 解析请求头
-        BODY,          // 解析请求体
-        FINISH         // 解析完成
-    };
-
-    enum PARSE_RESULT {
-        OK = 0,      // 解析成功（合法且完整的 HTTP 请求）
-        ERROR,       // 解析失败（非法的 HTTP 请求）
-        NOT_FINISH   // 解析失败（不完整的 HTTP 请求）
-    };
+    friend class HttpConn;
 
     HttpRequest() { init(); }
     ~HttpRequest() = default;
 
     void init();
-    HttpRequest::PARSE_RESULT parse(Buffer &buf);
 
     bool is_keep_alive() const;
     std::string get_path() const;
@@ -44,15 +31,6 @@ public:
     std::string get_post(const std::string &key) const;
     std::string get_header(const std::string &key) const;
 private:
-    bool parse_requestline(const std::string &line);
-    void parse_header(const std::string &line);
-    void parse_body(const std::string &line);
-
-    void parse_post();
-    void parse_form_urlencoded();
-    void parse_uri();
-
-    PARSE_STATE state;    // 请求的解析状态
     std::string method;   // 请求方法
     std::string request_uri;
     std::string path;     // 要访问的资源路径
@@ -61,9 +39,6 @@ private:
     std::string body;     // 请求的消息体
     std::unordered_map<std::string,std::string> headers;  // 请求头部
     std::unordered_map<std::string,std::string> post;  // POST请求
-    
-    static const std::regex re_requestline;
-    static const std::regex re_header;
 };
 
 #endif
